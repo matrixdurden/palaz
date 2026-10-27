@@ -8,8 +8,9 @@
 
 const PROJECT = "palaz-95879";
 const ORIGINS = ["https://palaz.web.app", "https://palaz-95879.web.app", "https://palaz-95879.firebaseapp.com", "http://localhost:5180"];
-// İlki hata verirse (model kalkmış, geçici sorun) sıradakine geçilir.
-const MODELS = ["@cf/meta/llama-4-scout-17b-16e-instruct", "@cf/mistralai/mistral-small-3.1-24b-instruct"];
+// İlki hata verirse (model kalkmış, geçici sorun) sıradakine geçilir. Paket fotoğraflarıyla
+// denendi: ikisi de 1024 px besin tablosunu doğru okuyor, paket miktarında Qwen daha isabetli.
+const MODELS = ["@cf/qwen/qwen3.8-27b", "@cf/meta/llama-4-scout-17b-16e-instruct"];
 const MAX_IMAGE = 2_000_000; // base64 karakter; uygulama 1024 px JPEG yollar (~150 KB)
 const JWKS = "https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com";
 const LANG_NAME = { tr: "Turkish", en: "English" };
@@ -29,8 +30,9 @@ const RESPONSE_FORMAT = {
             grams: { type: "number" },
             kcal_per_100g: { type: "number" },
             protein_per_100g: { type: "number" },
+            source: { type: "string", enum: ["label", "known", "estimate"] },
           },
-          required: ["name", "grams", "kcal_per_100g", "protein_per_100g"],
+          required: ["name", "grams", "kcal_per_100g", "protein_per_100g", "source"],
         },
       },
       note: { type: "string" },
@@ -39,18 +41,29 @@ const RESPONSE_FORMAT = {
   },
 };
 
+// Kullanım çoğunlukla paketli ürün: paketin ön yüzü, besin tablosu ya da ikisi birden.
 function prompt(text, lang) {
   return [
-    "You estimate the nutrition of food someone has just eaten, for a calorie and protein log.",
-    "The user lives in Turkey: assume typical Turkish home, street and restaurant portions unless told otherwise.",
-    "From the photo and/or the description, list each dish or drink (a dish with its sauce is one item) with:",
-    `name (short, in ${LANG_NAME[lang]}), grams eaten, kcal_per_100g and protein_per_100g as in standard food composition tables for that dish as served.`,
-    "Typical portions: a plate (tabak/porsiyon) of a main dish 250-350 g; a whole Turkish bread (ekmek) 250 g, half 125 g, a slice 35 g;",
-    "a bowl of yogurt or soup 200 g; a glass of a drink 200 g; a döner or dürüm 250-350 g; a simit 100 g; an egg 50 g.",
-    "Do not underestimate: these portions are what people actually eat. Account for oil or butter in the per-100g values.",
-    "Prefer the description over the photo when they disagree. If there is no food or drink, return an empty items list.",
-    `note: one short sentence in ${LANG_NAME[lang]} naming the biggest uncertainty (for example whether it was fried), or an empty string.`,
-    text ? `Description: ${text}` : "No description, use the photo.",
+    "You log what someone in Turkey has just eaten, for a calorie and protein diary.",
+    "Usually the photo shows a packaged food or drink: the front of the pack, its nutrition table, or both. Sometimes there is only a description, sometimes a meal.",
+    "",
+    "Packaged product (one item per product):",
+    "- name: brand and product as printed, e.g. \"Ülker Albeni\" or \"Eti Cin\".",
+    "- grams: net weight of one whole retail pack as sold (they ate the pack), unless the description says otherwise (half, 2 packs, 3 pieces).",
+    "  If several packs are visible (a box of bars), it is still one pack. If the net weight is not visible, use the real usual weight",
+    "  of one pack of that product; typical: chocolate or wafer bars 25-50 g, biscuit or cracker packs 40-150 g, chips 30-150 g, 1 can of drink 330 g.",
+    "- If a nutrition table is readable: copy its per-100 g energy (kcal, not kJ) and protein exactly, source \"label\".",
+    "- Else if you know this specific product: its typical per-100 g values, source \"known\".",
+    "- Else: values of similar products, source \"estimate\".",
+    "",
+    "Meal or unpackaged food: one item per dish (a dish with its sauce is one item), source \"estimate\".",
+    "Portions: a plate of a main dish 250-350 g; a whole Turkish bread 250 g, a slice 35 g; a bowl of yogurt or soup 200 g;",
+    "a glass of a drink 200 g; a döner or dürüm 250-350 g; a simit 100 g; an egg 50 g. Account for oil or butter.",
+    "",
+    `Names in ${LANG_NAME[lang]} (keep brand names as they are). Prefer the description over the photo when they disagree.`,
+    "If there is no food or drink, return an empty items list.",
+    `note: one short sentence in ${LANG_NAME[lang]} only if something important is uncertain (for example the pack size), else an empty string.`,
+    text ? `Description: ${text}` : "No description.",
   ].join("\n");
 }
 
@@ -72,6 +85,7 @@ export function toItems(response) {
     grams: Number(it.grams),
     kcal: (Number(it.grams) * Number(it.kcal_per_100g)) / 100,
     protein: (Number(it.grams) * Number(it.protein_per_100g)) / 100,
+    source: ["label", "known"].includes(it.source) ? it.source : "estimate",
   }));
   return { items, note: data.note || "" };
 }
@@ -138,16 +152,22 @@ export default {
     const lang = body?.lang === "en" ? "en" : "tr";
     if (!text && !image) return reply(400, { error: "bad" });
 
+    // Yerel denemede başka model denenebilir (ALLOW_ANON yayında kapalı).
+    const models = env.ALLOW_ANON === "1" && body?.model ? [String(body.model)] : MODELS;
     let last;
-    for (const model of MODELS) {
+    for (const model of models) {
       try {
         const out = await env.AI.run(model, {
           messages: messages({ text, image, lang }),
           response_format: RESPONSE_FORMAT,
           temperature: 0,
-          max_tokens: 800,
+          max_tokens: 1500,
+          // Qwen önce uzun uzun "düşünüyor" (30-110 sn); kapalıyken birkaç saniyede aynı değerleri okuyor.
+          chat_template_kwargs: { enable_thinking: false },
+          reasoning_effort: "low",
         });
-        return reply(200, toItems(out?.response));
+        if (env.ALLOW_ANON === "1") console.log(model, JSON.stringify(out).slice(0, 600));
+        return reply(200, toItems(out?.response ?? out?.choices?.[0]?.message?.content));
       } catch (err) {
         last = err;
         console.error(model, String(err?.message ?? err));

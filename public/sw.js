@@ -1,7 +1,7 @@
 // Uygulama dosyalarını önbelleğe alır ki internet yokken de açılsın.
 // İnternet varsa her zaman en güncel sürüm gelir.
 
-const CACHE = "palaz-v3";
+const CACHE = "palaz-v4";
 const SHELL = [
   "/", "/index.html", "/style.css", "/app.js", "/plan.js", "/data.js", "/ui.js", "/firebase.js",
   "/firebase-config.js", "/install.js", "/i18n.js", "/nutrition.js", "/scan.js", "/manifest.webmanifest", "/manifest-dark.webmanifest", "/icons/icon.svg", "/icons/icon-192.png",

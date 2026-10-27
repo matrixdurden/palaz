@@ -28,6 +28,16 @@ test("Open Food Facts: sadece kJ varsa çevrilir, porsiyon yoksa küçük paket"
   assert.equal(p.grams, 50);
 });
 
+test("Open Food Facts: varsayılan miktar paketin tamamı, çok büyük pakette porsiyon", () => {
+  const product = (pack, serving) => ({
+    status: 1,
+    product: { product_name: "Halley", product_quantity: pack, serving_quantity: serving, nutriments: { "energy-kcal_100g": 440 } },
+  });
+  assert.equal(parseOffProduct(product(300, 30), "tr").grams, 300);
+  assert.equal(parseOffProduct(product(1000, 30), "tr").grams, 30);
+  assert.equal(parseOffProduct(product(1000, null), "tr").grams, 100);
+});
+
 test("Open Food Facts: bulunamayan ya da enerjisiz ürün", () => {
   assert.equal(parseOffProduct({ status: 0, status_verbose: "product not found" }, "tr"), null);
   assert.equal(parseOffProduct({ status: 1, product: { product_name: "Su", nutriments: {} } }, "tr"), null);
@@ -41,13 +51,20 @@ test("gram ölçeği", () => {
 test("yapay zekâ cevabı temizlenir", () => {
   const out = cleanEstimate({
     items: [
-      { name: " Mantı ", grams: 250.4, kcal: 480.6, protein: 21.2 },
+      { name: " Mantı ", grams: 250.4, kcal: 480.6, protein: 21.2, source: "made-up" },
+      { name: "Albeni", grams: 40, kcal: 188, protein: 2.8, source: "known" },
       { name: "", grams: 10, kcal: 10, protein: 1 },
       { name: "Hava", grams: 0, kcal: 0, protein: 0 },
       { name: "Saçma", grams: 100, kcal: 99999, protein: 1 },
     ],
     note: "Tereyağlı mıydı?",
   });
-  assert.deepEqual(out, { items: [{ name: "Mantı", grams: 250, kcal: 481, protein: 21 }], note: "Tereyağlı mıydı?" });
+  assert.deepEqual(out, {
+    items: [
+      { name: "Mantı", grams: 250, kcal: 481, protein: 21, source: "estimate" },
+      { name: "Albeni", grams: 40, kcal: 188, protein: 3, source: "known" },
+    ],
+    note: "Tereyağlı mıydı?",
+  });
   assert.deepEqual(cleanEstimate(null), { items: [], note: "" });
 });

@@ -12,7 +12,7 @@ export const isBarcode = (s) => /^\d{8,14}$/.test(String(s).trim());
 export const scale = (per100, grams) => (per100 * grams) / 100;
 
 // Open Food Facts API v2 cevabı → { name, kcal100, protein100, grams } ya da null.
-// grams: önerilen porsiyon (porsiyon bilgisi, küçük paketse paketin tamamı, yoksa 100 g).
+// grams: paketin tamamı (genelde paket bitirilir); paket bilgisi yoksa ya da çok büyükse porsiyon, o da yoksa 100 g.
 export function parseOffProduct(json, lang) {
   if (!json || json.status !== 1 || !json.product) return null;
   const p = json.product;
@@ -33,7 +33,7 @@ export function parseOffProduct(json, lang) {
     name,
     kcal100: kcal,
     protein100: num(n.proteins_100g) ?? 0,
-    grams: Math.round(serving || (pack && pack <= 250 ? pack : 100)),
+    grams: Math.round((pack && pack <= 500 ? pack : serving) || 100),
   };
 }
 
@@ -45,6 +45,7 @@ export function cleanEstimate(raw) {
       grams: num(it?.grams),
       kcal: num(it?.kcal),
       protein: num(it?.protein),
+      source: ["label", "known"].includes(it?.source) ? it.source : "estimate",
     }))
     .filter((it) => it.name && it.grams > 0 && it.kcal != null && it.kcal <= 5000)
     .map((it) => ({
@@ -52,6 +53,7 @@ export function cleanEstimate(raw) {
       grams: Math.round(it.grams),
       kcal: Math.round(it.kcal),
       protein: Math.round(Math.min(it.protein ?? 0, 300)),
+      source: it.source,
     }))
     .slice(0, 8);
   return { items, note: String(raw?.note || "").trim().slice(0, 200) };

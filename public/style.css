@@ -349,3 +349,10 @@ details.card:not([open]) { gap: 0; }
 .spinner { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 2.5px solid var(--border); border-top-color: var(--prot); }
 @media (prefers-reduced-motion: no-preference) { .spinner { animation: spin 0.8s linear infinite; } }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.portions { display: flex; gap: 6px; flex: 1 1 100%; }
+.portions button { height: 32px; padding: 0 10px; font-size: 0.82rem; font-weight: 600; color: var(--text-2); }
+.portions button[aria-pressed="true"] { background: var(--prot-soft); color: var(--prot); border-color: var(--prot-soft); }
+.badge { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 0.7rem; font-weight: 600; vertical-align: 2px; background: var(--bg); color: var(--text-2); }
+.badge.barcode, .badge.label { background: var(--prot-soft); color: var(--prot); }
+.badge.known { background: var(--kcal-soft); color: var(--kcal); }

@@ -78,6 +78,7 @@ export async function estimateFood({ text, image, lang }) {
       method: "POST",
       headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ text, image: image?.base64, lang }),
+      signal: AbortSignal.timeout(60000), // ücretsiz kuyruk bazen yavaşlıyor
     });
   } catch {
     throw fail("failed");

@@ -211,6 +211,12 @@ const scanActions = () => `<div class="row end">
   <button type="button" class="ink small" data-scan="add">${t("addToday")}</button>
 </div>`;
 
+// ½ / 1 / 2 paket (ya da porsiyon): ilk okunan miktarın katları.
+const portions = (key, unit) => `<div class="portions" role="group">${[0.5, 1, 2].map((f) =>
+  `<button type="button" data-portion="${key}:${f}" aria-pressed="${f === 1}">${f === 0.5 ? "½" : f} ${unit}</button>`).join("")}</div>`;
+
+const badge = (source) => `<span class="badge ${source}">${t(`src.${source}`)}</span>`;
+
 const gramsInput = (key, value, name) => `<label class="grams">
   <input class="num" type="number" inputmode="numeric" min="0" max="2000" data-grams="${key}" value="${value}" aria-label="${esc(t("gramsLabel", { x: name }))}"><span>${t("grams")}</span>
 </label>`;
@@ -233,20 +239,24 @@ function renderScan() {
       <div class="row end"><button type="button" class="ghost small" data-scan="cancel">${t("close")}</button></div>`;
   } else if (scan.product) {
     const pr = scan.product;
-    el.innerHTML = `<div class="scan-status">${thumb}<div><strong>${esc(pr.name)}</strong>
+    el.innerHTML = `<div class="scan-status">${thumb}<div><strong>${esc(pr.name)}</strong> ${badge("barcode")}
       <p class="muted small">${t("scanPer100", { k: fmt(pr.kcal100), p: fmt(pr.protein100) })}</p></div></div>
       <div class="scan-item">${gramsInput("product", scan.grams, pr.name)}<span class="num" data-out="0"></span></div>
+      ${portions("product", t("pack"))}
       <p class="muted small">${t("scanSource")}</p>
       ${scanActions()}`;
   } else {
-    el.innerHTML = `<div class="scan-status">${thumb}<span class="muted small">${t("scanEstimate")}</span></div>
+    const estimated = scan.items.some((it) => it.source === "estimate");
+    el.innerHTML = `${thumb ? `<div class="scan-status">${thumb}</div>` : ""}
       ${scan.items.map((it, i) => `<div class="scan-item">
-        <span class="scan-name">${esc(it.name)}</span>
+        <span class="scan-name">${esc(it.name)} ${badge(it.source)}</span>
         ${gramsInput(i, it.g, it.name)}
         <span class="num" data-out="${i}"></span>
         <button type="button" class="icon sm" data-scan="del" data-i="${i}" aria-label="${esc(`${t("delete")}: ${it.name}`)}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        ${portions(i, t(it.source === "estimate" ? "portion" : "pack"))}
       </div>`).join("")}
       ${scan.note ? `<p class="hint-line">${esc(scan.note)}</p>` : ""}
+      ${estimated ? `<p class="muted small">${t("scanEstimate")}</p>` : ""}
       ${scanActions()}`;
   }
   updateScanTotals();
@@ -328,13 +338,30 @@ $("#scan-photo").addEventListener("change", async (e) => {
   }
 });
 
+function setScanGrams(key, g) {
+  if (key === "product") scan.grams = g;
+  else scan.items[Number(key)].g = g;
+  const base = key === "product" ? scan.product.grams : scan.items[Number(key)].grams;
+  for (const b of document.querySelectorAll(`#scan-result [data-portion^="${key}:"]`)) {
+    b.setAttribute("aria-pressed", String(Math.round(base * Number(b.dataset.portion.split(":")[1])) === g));
+  }
+  updateScanTotals();
+}
+
 $("#scan-result").addEventListener("input", (e) => {
   const input = e.target.closest("input[data-grams]");
   if (!input || !scan) return;
-  const g = Math.max(0, Math.min(2000, parseInt(input.value, 10) || 0));
-  if (input.dataset.grams === "product") scan.grams = g;
-  else scan.items[Number(input.dataset.grams)].g = g;
-  updateScanTotals();
+  setScanGrams(input.dataset.grams, Math.max(0, Math.min(2000, parseInt(input.value, 10) || 0)));
+});
+
+$("#scan-result").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-portion]");
+  if (!b || !scan) return;
+  const [key, f] = b.dataset.portion.split(":");
+  const base = key === "product" ? scan.product.grams : scan.items[Number(key)].grams;
+  const g = Math.round(base * Number(f));
+  $(`#scan-result input[data-grams="${key}"]`).value = g;
+  setScanGrams(key, g);
 });
 
 function addScan() {
