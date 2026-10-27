@@ -57,6 +57,50 @@
     </div>
   </main>
 
+  <!-- Kurulum: yeni kullanıcı ya da Ayarlar → Hedefimi hesapla -->
+  <main id="setup" hidden>
+    <form id="setup-form" class="setup" novalidate>
+      <div class="setup-head">
+        <h1 data-i18n="setupTitle"></h1>
+        <p class="muted" data-i18n="setupLead"></p>
+      </div>
+      <div class="field">
+        <span class="label" data-i18n="sex"></span>
+        <div class="seg" id="setup-sex" role="group" data-i18n-label="sex">
+          <button type="button" data-v="m" data-i18n="male"></button>
+          <button type="button" data-v="f" data-i18n="female"></button>
+        </div>
+      </div>
+      <div class="field-row">
+        <label class="field"><span class="label" data-i18n="age"></span><input id="setup-age" class="num" inputmode="numeric" autocomplete="off" placeholder="17"></label>
+        <label class="field"><span class="label" data-i18n="heightCm"></span><input id="setup-height" class="num" inputmode="numeric" autocomplete="off" placeholder="170"></label>
+        <label class="field"><span class="label" data-i18n="weightKg"></span><input id="setup-weight" class="num" inputmode="decimal" autocomplete="off" placeholder="60"></label>
+      </div>
+      <div class="field">
+        <span class="label" data-i18n="activity"></span>
+        <div class="seg" id="setup-activity" role="group" data-i18n-label="activity">
+          <button type="button" data-v="low" data-i18n="act.low"></button>
+          <button type="button" data-v="mid" data-i18n="act.mid"></button>
+          <button type="button" data-v="high" data-i18n="act.high"></button>
+        </div>
+        <p class="muted small" id="setup-activity-hint"></p>
+      </div>
+      <div class="field">
+        <span class="label" data-i18n="goal"></span>
+        <div class="seg" id="setup-goal" role="group" data-i18n-label="goal">
+          <button type="button" data-v="gain" data-i18n="goal.gain"></button>
+          <button type="button" data-v="slow" data-i18n="goal.slow"></button>
+          <button type="button" data-v="keep" data-i18n="goal.keep"></button>
+        </div>
+        <p class="muted small" id="setup-goal-hint"></p>
+      </div>
+      <div class="card setup-result" id="setup-result"></div>
+      <label class="check" id="setup-rescale-row" hidden><input type="checkbox" id="setup-rescale" checked><span data-i18n="rescaleMeals"></span></label>
+      <button class="ink block" type="submit" id="setup-submit"></button>
+      <button class="ghost block" type="button" id="setup-cancel" hidden data-i18n="cancel"></button>
+    </form>
+  </main>
+
   <!-- Uygulama -->
   <div id="app" hidden>
     <header class="top">
@@ -167,6 +211,10 @@
       <div class="stepper"><button type="button" id="k-minus" data-i18n-label="kcalDown">−</button><b id="k-target" class="num"></b><button type="button" id="k-plus" data-i18n-label="kcalUp">+</button></div>
       <div class="stepper"><button type="button" id="p-minus" data-i18n-label="protDown">−</button><b id="p-target" class="num"></b><button type="button" id="p-plus" data-i18n-label="protUp">+</button></div>
       <p class="muted small center" data-i18n="goalRule"></p>
+      <div class="row plan-buttons">
+        <button type="button" id="open-setup" data-i18n="calcGoal"></button>
+        <button type="button" id="open-meals" data-i18n="editMeals"></button>
+      </div>
       <p class="label" data-i18n="language"></p>
       <div class="seg lang-seg" role="group" data-i18n-label="language">
         <button type="button" data-lang="tr">Türkçe</button>
@@ -180,6 +228,22 @@
       </div>
       <button id="sign-out" class="block danger" type="button" data-i18n="signOut"></button>
       <button class="block ghost" value="close" data-i18n="close"></button>
+    </form>
+  </dialog>
+
+  <!-- Öğün planını düzenleme -->
+  <dialog id="meal-editor" class="wide">
+    <form method="dialog" class="menu" id="meal-form">
+      <h3 data-i18n="editMeals"></h3>
+      <p class="muted small center" data-i18n="editMealsLead"></p>
+      <div id="meal-rows" class="meal-rows"></div>
+      <button type="button" class="block" id="meal-add" data-i18n="addMeal"></button>
+      <p class="plan-total num" id="meal-total"></p>
+      <div class="row end">
+        <button type="button" class="ghost small" id="meal-reset" data-i18n="resetMeals"></button>
+        <button type="button" class="ghost small" id="meal-cancel" data-i18n="cancel"></button>
+        <button type="submit" class="ink small" value="save" data-i18n="save"></button>
+      </div>
     </form>
   </dialog>
 

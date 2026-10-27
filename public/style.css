@@ -179,6 +179,48 @@ button.icon.sm svg { width: 16px; height: 16px; }
 .g-logo { width: 20px; height: 20px; }
 .hint { color: var(--text-2); font-size: 0.86rem; text-align: center; }
 
+/* --- Kurulum ------------------------------------------------------------- */
+
+#setup {
+  max-width: 460px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  padding: calc(32px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(32px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+}
+.setup { display: flex; flex-direction: column; gap: 18px; }
+.setup-head { display: flex; flex-direction: column; gap: 6px; }
+.setup-head h1 { font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.field-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.field-row input { text-align: center; font-size: 1.1rem; font-weight: 700; }
+.field-row input::placeholder { font-weight: 500; opacity: 0.4; }
+.setup-result { gap: 6px; min-height: 92px; justify-content: center; }
+.setup-nums { display: flex; gap: 18px; flex-wrap: wrap; align-items: baseline; }
+.setup-nums b { font-family: var(--display); font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; }
+.setup-nums b small { font-family: var(--body); font-size: 0.9rem; font-weight: 600; color: var(--text-2); letter-spacing: 0; }
+.setup-nums .k { color: var(--kcal); }
+.setup-nums .p { color: var(--prot); }
+.check { display: flex; align-items: center; gap: 10px; font-size: 0.92rem; cursor: pointer; }
+.check input { width: 20px; height: 20px; accent-color: var(--kcal); flex: none; }
+
+/* --- Öğün planı düzenleme ------------------------------------------------ */
+
+.plan-buttons button { flex: 1; font-size: 0.86rem; padding: 0 10px; }
+dialog.wide { width: min(520px, calc(100% - 20px)); max-height: calc(100dvh - 24px); }
+dialog.wide .menu { max-height: calc(100dvh - 26px); }
+dialog.wide .menu > :not(.meal-rows) { flex: none; }
+.meal-rows { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 0; flex: 1; margin: 0 -4px; padding: 0 4px; }
+.meal-row { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 16px; background: var(--card-2); }
+.meal-row input { height: 40px; background: var(--card); font-size: 0.92rem; }
+.meal-row-top { display: flex; gap: 6px; align-items: center; }
+.meal-row-top input[type="time"] { flex: 0 0 96px; padding: 0 8px; font-weight: 700; }
+.meal-row-top input:not([type]) { flex: 1; font-weight: 700; }
+.vals { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.vals > span { flex: 1 1 70px; }
+.vals label { display: flex; align-items: center; gap: 6px; color: var(--text-2); font-size: 0.84rem; }
+.vals input { width: 76px; text-align: center; font-weight: 700; padding: 0 6px; }
+.plan-total { font-size: 0.86rem; font-weight: 600; color: var(--text-2); text-align: center; }
+
 /* --- Uygulama iskeleti --------------------------------------------------- */
 
 #app {

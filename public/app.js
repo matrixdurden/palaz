@@ -6,7 +6,8 @@ import {
 import { auth, DEMO } from "./firebase.js";
 import * as data from "./data.js";
 import {
-  MEALS, FOODS, POOL, PROGRAM, blankDay, variant, mealValues, dayTotals, bestCombos, applyCombo,
+  MEALS, FOODS, POOL, PROGRAM, PROFILE_LIMITS, blankDay, variant, mealValues, dayTotals, hasData, bestCombos, applyCombo,
+  calcTargets, validProfile, scaleMeals, planTotals, sortMeals,
   weightTrend, nextWorkoutType, lastSets, readyToProgress, dateKey, parseKey, addDays,
 } from "./plan.js";
 import { isBarcode, scale, rescale } from "./nutrition.js";
@@ -26,9 +27,13 @@ markLang();
 
 // --- Ekranlar ---------------------------------------------------------------
 
-function show(screen) {
-  $("#login").hidden = screen !== "login";
-  $("#app").hidden = screen !== "app";
+let screen = null; // "login" | "setup" | "app"; null: veri gelince karar verilecek
+
+function show(name) {
+  screen = name;
+  $("#login").hidden = name !== "login";
+  $("#setup").hidden = name !== "setup";
+  $("#app").hidden = name !== "app";
   const loader = $("#loading");
   if (loader) {
     loader.classList.add("fade");
@@ -51,6 +56,21 @@ function setTab(name) {
 function changed(event) {
   if (event === "error") toast(t("readFailed"));
   else if (event === "save-error") toast(t("saveFailed"));
+  // İlk okuma bitince: profili olmayan ve hiç kaydı olmayan kişi kurulumdan başlar.
+  // Profili olmayan eski kullanıcı doğrudan uygulamaya girer; hedefini Ayarlar'dan hesaplayabilir.
+  if (screen === null && event === "error") {
+    show("app"); // okunamadıysa açılış ekranında takılı kalmasın
+    setTab(tab);
+    return;
+  }
+  if (screen === null && state.ready) {
+    if (!state.profile && !Object.values(state.days).some(hasData)) openSetup(false);
+    else {
+      show("app");
+      setTab(tab);
+    }
+    return;
+  }
   render();
 }
 
@@ -58,8 +78,17 @@ function changed(event) {
 
 const day = (d) => state.days[d] || blankDay();
 
+// Bugün ve sonrası güncel planla, geçmiş günler o gün geçerli olan planla hesaplanır
+// (plan sonradan değişse de eski günlerin toplamı değişmesin).
+const currentMeals = () => state.meals || MEALS;
+const mealsOf = (d) => (d < today() && day(d).plan) || currentMeals();
+const mealName = (m) => m.name || (has(`meal.${m.id}`) ? t(`meal.${m.id}`) : t("newMeal"));
+const defaultDesc = (m, vr) => (m.id === "gece" ? t(`variant.${vr}.desc`) : has(`meal.${m.id}.desc`) ? t(`meal.${m.id}.desc`) : "");
+const mealDesc = (m, vr) => m.desc ?? defaultDesc(m, vr);
+
 function editDay(d, fn) {
   const copy = { ...blankDay(), ...structuredClone(day(d)) };
+  if (d >= today() || !copy.plan) copy.plan = structuredClone(currentMeals());
   fn(copy);
   state.days[d] = copy;
   data.saveDay(d);
@@ -90,8 +119,8 @@ function renderHeader() {
 }
 
 function renderToday() {
-  const d = sel, dy = day(d), T = state.targets;
-  const tot = dayTotals(dy, d >= today());
+  const d = sel, dy = day(d), T = state.targets, meals = mealsOf(d);
+  const tot = dayTotals(dy, d >= today(), meals);
 
   // Dış halka kalori, iç halka protein.
   const ring = (cls, r, v, max) => `
@@ -122,27 +151,27 @@ function renderToday() {
     </div>
     ${tot.projK > tot.k ? `<p class="muted small rest">${t("withRest", { k: fmt(tot.projK), p: fmt(tot.projP) })}</p>` : ""}`;
 
-  renderFix(d, dy, tot);
+  renderFix(d, dy, tot, meals);
 
-  $("#meals").innerHTML = MEALS.map((m) => {
+  $("#meals").innerHTML = meals.map((m) => {
     const st = dy.meals[m.id];
     const v = mealValues(m, dy);
     const vr = variant(m, dy);
-    const name = t(`meal.${m.id}`);
+    const name = mealName(m);
     const cls = st === 1 ? "full" : st === 0 ? "skip" : st === 0.5 ? "half" : "";
-    const desc = m.id === "gece" ? t(`variant.${vr}.desc`) : t(`meal.${m.id}.desc`);
+    const desc = mealDesc(m, vr);
     const variants = m.variants
       ? `<div class="seg soft" role="group" aria-label="${esc(name)}">${Object.keys(m.variants).map((key) =>
         `<button type="button" data-var="${m.id}:${key}" aria-pressed="${vr === key}">${t(`variant.${key}`)}</button>`).join("")}</div>`
       : "";
-    const hint = m.id === "gece" && !dy.geceTip && st == null
+    const hint = m.id === "gece" && m.variants && !dy.geceTip && st == null
       ? `<p class="hint-line">${t((dy.aksamTip || "doyurucu") === "hafif" ? "hintSmoothie" : "hintMilk")}</p>`
       : "";
     return `<div class="meal ${cls}">
       <span class="time num">${m.time}</span>
       <div class="meal-body">
         <div class="meal-top"><strong>${esc(name)}</strong><span class="num muted small">${v.k} kcal · ${v.p} g</span></div>
-        <p class="muted small">${esc(desc)}</p>
+        ${desc ? `<p class="muted small">${esc(desc)}</p>` : ""}
         ${variants}${hint}
         <div class="seg" role="group" aria-label="${esc(name)}">
           <button type="button" data-meal="${m.id}:0" aria-pressed="${st === 0}">${t("skipped")}</button>
@@ -172,11 +201,11 @@ function renderToday() {
   </li>`).join("");
 }
 
-function renderFix(d, dy, tot) {
+function renderFix(d, dy, tot, meals) {
   const el = $("#fix"), T = state.targets;
   const past = d < today();
   const gapK = T.kcal - tot.projK, gapP = T.protein - tot.projP;
-  const allSet = MEALS.every((m) => dy.meals[m.id] != null);
+  const allSet = meals.every((m) => dy.meals[m.id] != null);
   el.classList.remove("ok");
   fixOptions = [];
 
@@ -195,13 +224,14 @@ function renderFix(d, dy, tot) {
     return;
   }
 
-  const gece = MEALS.find((m) => m.id === "gece");
-  const canSwitch = dy.meals.gece == null && variant(gece, dy) === "sut";
+  // Gece öğünü planda duruyorsa sütü smoothie yapmak en kolay telafi.
+  const gece = meals.find((m) => m.id === "gece" && m.variants?.smoothie && m.variants?.sut);
+  const canSwitch = Boolean(gece) && dy.meals.gece == null && variant(gece, dy) === "sut";
   // En fazla iki seçenek göster: ekran sade kalsın.
   fixOptions = bestCombos(Math.max(gapK, 0), gapP).slice(0, canSwitch ? 1 : 2);
   const why = tot.projK > tot.k ? t("gapWhyRest", { k: fmt(tot.projK) }) : t("gapWhyNow", { k: fmt(tot.k) });
   const title = gapP > 0 ? t("gapKP", { k: fmt(Math.max(gapK, 0)), p: fmt(gapP) }) : t("gapK", { k: fmt(Math.max(gapK, 0)) });
-  const smoothie = gece.variants.smoothie, milk = gece.variants.sut;
+  const smoothie = gece?.variants.smoothie, milk = gece?.variants.sut;
   el.innerHTML = `
     <h2>${title}</h2>
     <p class="muted">${why} ${t("gapPick")}</p>
@@ -462,7 +492,7 @@ $("#exercises").addEventListener("focusout", () => {
 function renderProgress() {
   const T = state.targets, now = today();
   const days = Array.from({ length: 7 }, (_, i) => addDays(now, i - 6));
-  const eaten = (d) => dayTotals(day(d), false);
+  const eaten = (d) => dayTotals(day(d), false, mealsOf(d));
 
   $("#week").innerHTML = days.map((d) => {
     const tot = eaten(d);
@@ -646,6 +676,219 @@ $("#weight-form").addEventListener("submit", (e) => {
   toast(t("weightSaved"));
 });
 
+// --- Plan değişikliği ----------------------------------------------------------
+
+// Yeni öğün planına geçer. Kaydı olup planı saklanmamış geçmiş günler eski planı saklar,
+// bugün ve sonrası yeni plana geçer.
+function replan(next) {
+  const old = currentMeals(), now = today();
+  for (const [d, dy] of Object.entries(state.days)) {
+    if (d < now) {
+      if (dy.plan || !hasData(dy)) continue;
+      dy.plan = structuredClone(old);
+    } else if (dy.plan) {
+      dy.plan = structuredClone(next);
+    } else continue;
+    data.saveDay(d);
+  }
+  state.meals = next;
+}
+
+// --- Kurulum -------------------------------------------------------------------
+
+let setup = null; // { sex, activity, goal, edit }
+
+function openSetup(edit) {
+  const pr = state.profile || {};
+  setup = { sex: pr.sex || null, activity: pr.activity || "mid", goal: pr.goal || "gain", edit };
+  $("#setup-age").value = pr.age ?? "";
+  $("#setup-height").value = pr.height ?? "";
+  $("#setup-weight").value = pr.weight != null ? pr.weight.toLocaleString(locale()) : "";
+  $("#setup-rescale").checked = true;
+  $("#setup-rescale-row").hidden = !edit;
+  $("#setup-cancel").hidden = !edit;
+  $("#setup-submit").textContent = t(edit ? "save" : "setupStart");
+  show("setup");
+  scrollTo(0, 0);
+  renderSetup();
+}
+
+function readProfile() {
+  const num = (id) => parseFloat($(id).value.replace(",", "."));
+  return {
+    sex: setup.sex,
+    age: Math.round(num("#setup-age")),
+    height: Math.round(num("#setup-height")),
+    weight: Math.round(num("#setup-weight") * 10) / 10,
+    activity: setup.activity,
+    goal: setup.goal,
+  };
+}
+
+function renderSetup() {
+  for (const [id, key] of [["#setup-sex", "sex"], ["#setup-activity", "activity"], ["#setup-goal", "goal"]]) {
+    for (const b of $(id).children) b.setAttribute("aria-pressed", String(b.dataset.v === setup[key]));
+  }
+  $("#setup-activity-hint").textContent = t(`act.${setup.activity}.hint`);
+  $("#setup-goal-hint").textContent = t(`goal.${setup.goal}.hint`);
+  const pr = readProfile();
+  const ok = validProfile(pr);
+  $("#setup-submit").disabled = !ok;
+  if (ok) {
+    const T = calcTargets(pr);
+    $("#setup-result").innerHTML = `<span class="label">${t("setupResult")}</span>
+      <div class="setup-nums"><b class="num k">${fmt(T.kcal)}<small> kcal</small></b><b class="num p">${fmt(T.protein)}<small> ${t("proteinUnit")}</small></b></div>`;
+    return;
+  }
+  const filled = ["#setup-age", "#setup-height", "#setup-weight"].every((id) => $(id).value.trim());
+  const range = (key) => PROFILE_LIMITS[key].join("–");
+  $("#setup-result").innerHTML = `<p class="muted small">${filled && setup.sex
+    ? t("setupInvalid", { a: range("age"), h: range("height"), w: range("weight") })
+    : t("setupNeed")}</p>`;
+}
+
+$("#setup").addEventListener("click", (e) => {
+  const b = e.target.closest(".seg button[data-v]");
+  if (!b) return;
+  setup[{ "setup-sex": "sex", "setup-activity": "activity", "setup-goal": "goal" }[b.parentElement.id]] = b.dataset.v;
+  renderSetup();
+});
+$("#setup-form").addEventListener("input", () => renderSetup());
+
+$("#setup-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const pr = readProfile();
+  if (!validProfile(pr)) return;
+  const targets = calcTargets(pr);
+  const { edit } = setup;
+  state.profile = pr;
+  state.targets = targets;
+  if (!edit) replan(scaleMeals(MEALS, targets));
+  else if ($("#setup-rescale").checked) replan(scaleMeals(currentMeals(), targets));
+  // İlk kurulumda girilen kilo, tartı listesinin ilk kaydı olur.
+  const now = today();
+  if (!edit && !state.weights[now] && pr.weight >= 30 && pr.weight <= 150) {
+    state.weights[now] = { kg: pr.weight };
+    data.saveWeight(now);
+  }
+  data.saveUser();
+  setup = null;
+  show("app");
+  setTab(edit ? tab : "today");
+  toast(t("setupDone", { k: fmt(targets.kcal), p: fmt(targets.protein) }));
+});
+
+$("#setup-cancel").addEventListener("click", () => {
+  setup = null;
+  show("app");
+  setTab(tab);
+});
+
+// --- Öğün planı düzenleme ------------------------------------------------------
+
+const MAX_MEALS = 10;
+let draft = []; // düzenlenen plan; ekrandaki ad ve içerik metinleriyle
+
+const toDraft = (m) => ({
+  ...structuredClone(m),
+  name: mealName(m),
+  desc: m.variants ? m.desc ?? "" : mealDesc(m), // değişkenli öğünde boş = türe göre hazır metin
+});
+
+// Varsayılandan farkı olmayan ad ve içerik saklanmaz; dil değişince i18n metni gelsin.
+function fromDraft(m) {
+  const out = { id: m.id, time: /^\d{2}:\d{2}$/.test(m.time) ? m.time : "12:00" };
+  if (m.variants) out.variants = m.variants;
+  else Object.assign(out, { k: m.k, p: m.p });
+  const name = m.name.trim(), desc = m.desc.trim();
+  const defName = has(`meal.${m.id}`) ? t(`meal.${m.id}`) : "";
+  if (name && name !== defName) out.name = name;
+  else if (!defName) out.name = t("newMeal");
+  if (m.variants ? desc : desc !== defaultDesc(m)) out.desc = desc;
+  return out;
+}
+
+const valuesRow = (key, v, label) => `<div class="vals">
+  ${label ? `<span class="muted small">${esc(label)}</span>` : ""}
+  <label><input class="num" inputmode="numeric" maxlength="4" data-mv="${key}:k" value="${v.k}" aria-label="kcal"><span>kcal</span></label>
+  <label><input class="num" inputmode="numeric" maxlength="3" data-mv="${key}:p" value="${v.p}" aria-label="${t("protein")}"><span>g</span></label>
+</div>`;
+
+function renderMealRows() {
+  $("#meal-rows").innerHTML = draft.map((m, i) => `<div class="meal-row">
+    <div class="meal-row-top">
+      <input type="time" class="num" data-mf="${i}:time" value="${m.time}" aria-label="${t("mealTime")}">
+      <input data-mf="${i}:name" value="${esc(m.name)}" maxlength="30" placeholder="${t("mealName")}" aria-label="${t("mealName")}">
+      <button type="button" class="icon sm" data-mdel="${i}" ${draft.length < 2 ? "disabled" : ""} aria-label="${esc(`${t("delete")}: ${m.name}`)}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <input data-mf="${i}:desc" value="${esc(m.desc)}" maxlength="100" placeholder="${esc(m.variants ? defaultDesc(m, variant(m, blankDay())) : t("mealDesc"))}" aria-label="${t("mealDesc")}">
+    ${m.variants
+      ? Object.entries(m.variants).map(([key, v]) => valuesRow(`${i}:${key}`, v, t(`variant.${key}`))).join("")
+      : valuesRow(`${i}`, m, "")}
+  </div>`).join("");
+  $("#meal-add").disabled = draft.length >= MAX_MEALS;
+  renderMealTotal();
+}
+
+function renderMealTotal() {
+  const tot = planTotals(draft), T = state.targets;
+  $("#meal-total").textContent = t("planTotal", { k: fmt(tot.k), p: fmt(tot.p), tk: fmt(T.kcal), tp: fmt(T.protein) });
+}
+
+function openMeals() {
+  draft = currentMeals().map(toDraft);
+  renderMealRows();
+  $("#meal-editor").showModal();
+  $("#meal-rows").scrollTop = 0;
+}
+
+$("#meal-rows").addEventListener("input", (e) => {
+  const el = e.target;
+  if (el.dataset.mf) {
+    const [i, field] = el.dataset.mf.split(":");
+    draft[Number(i)][field] = el.value;
+  } else if (el.dataset.mv) {
+    const parts = el.dataset.mv.split(":");
+    const field = parts.pop();
+    const meal = draft[Number(parts[0])];
+    const target = parts[1] ? meal.variants[parts[1]] : meal;
+    target[field] = Math.max(0, Math.min(field === "k" ? 3000 : 300, parseInt(el.value, 10) || 0));
+    renderMealTotal();
+  }
+});
+
+$("#meal-rows").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-mdel]");
+  if (!b || draft.length < 2) return;
+  draft.splice(Number(b.dataset.mdel), 1);
+  renderMealRows();
+});
+
+$("#meal-add").addEventListener("click", () => {
+  if (draft.length >= MAX_MEALS) return toast(t("mealsMax"));
+  draft.push({ id: `m${Date.now().toString(36)}`, time: "12:00", name: "", desc: "", k: 300, p: 15 });
+  renderMealRows();
+  const rows = $("#meal-rows").children;
+  rows[rows.length - 1].querySelector('[data-mf$=":name"]').focus();
+});
+
+$("#meal-reset").addEventListener("click", () => {
+  draft = scaleMeals(MEALS, state.targets).map(toDraft);
+  renderMealRows();
+  toast(t("mealsResetDone"));
+});
+
+$("#meal-cancel").addEventListener("click", () => $("#meal-editor").close());
+
+$("#meal-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  replan(sortMeals(draft.map(fromDraft)));
+  data.saveUser();
+  $("#meal-editor").close();
+  render();
+  toast(t("mealsSaved"));
+});
+
 // --- Ayarlar -----------------------------------------------------------------
 
 function setTargets(kcal, protein) {
@@ -653,7 +896,7 @@ function setTargets(kcal, protein) {
     kcal: Math.max(1500, Math.min(5000, kcal)),
     protein: Math.max(40, Math.min(250, protein)),
   };
-  data.saveTargets();
+  data.saveUser();
   renderSettings();
   render();
 }
@@ -678,6 +921,14 @@ $("#k-minus").addEventListener("click", () => setTargets(state.targets.kcal - 10
 $("#k-plus").addEventListener("click", () => setTargets(state.targets.kcal + 100, state.targets.protein));
 $("#p-minus").addEventListener("click", () => setTargets(state.targets.kcal, state.targets.protein - 5));
 $("#p-plus").addEventListener("click", () => setTargets(state.targets.kcal, state.targets.protein + 5));
+$("#open-setup").addEventListener("click", () => {
+  $("#settings").close();
+  openSetup(true);
+});
+$("#open-meals").addEventListener("click", () => {
+  $("#settings").close();
+  openMeals();
+});
 $("#sign-out").addEventListener("click", () => {
   $("#settings").close();
   signOut(auth);
@@ -703,9 +954,7 @@ document.addEventListener("visibilitychange", () => {
 if (DEMO) {
   $("#demo-banner").hidden = false;
   user = { uid: "demo" };
-  data.start("demo", changed);
-  show("app");
-  setTab(tab);
+  data.start("demo", changed); // veri hazır olunca changed() kurulumu ya da uygulamayı açar
 } else {
   const provider = new GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
@@ -745,9 +994,8 @@ if (DEMO) {
     }
     if (user?.uid === u.uid) return;
     user = u;
-    data.start(u.uid, changed);
-    show("app");
-    setTab(tab);
+    screen = null;
+    data.start(u.uid, changed); // ilk okuma bitince changed() kurulumu ya da uygulamayı açar
   });
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");

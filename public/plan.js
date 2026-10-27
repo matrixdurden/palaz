@@ -3,6 +3,33 @@
 
 export const DEFAULT_TARGETS = { kcal: 2800, protein: 110 };
 
+// --- Hedef hesabı ----------------------------------------------------------
+
+// Hareket katsayısı (Mifflin-St Jeor bazal × katsayı) ve hedefe göre eklenen kalori.
+export const ACTIVITY = { low: 1.375, mid: 1.55, high: 1.725 };
+export const GOALS = { gain: 400, slow: 250, keep: 0 };
+const PROTEIN_PER_KG = { gain: 1.8, slow: 1.8, keep: 1.6 };
+
+export const PROFILE_LIMITS = { age: [13, 80], height: [130, 220], weight: [35, 200] };
+
+export function validProfile(pr) {
+  return Boolean(pr) && ["m", "f"].includes(pr.sex) && pr.activity in ACTIVITY && pr.goal in GOALS
+    && Object.entries(PROFILE_LIMITS).every(([key, [lo, hi]]) => pr[key] >= lo && pr[key] <= hi);
+}
+
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+export function calcTargets(pr) {
+  const bmr = 10 * pr.weight + 6.25 * pr.height - 5 * pr.age + (pr.sex === "f" ? -161 : 5);
+  const kcal = Math.round((bmr * ACTIVITY[pr.activity] + GOALS[pr.goal]) / 50) * 50;
+  const protein = Math.round((pr.weight * PROTEIN_PER_KG[pr.goal]) / 5) * 5;
+  return { kcal: clamp(kcal, 1500, 5000), protein: clamp(protein, 40, 250) };
+}
+
+// --- Öğün planı ------------------------------------------------------------
+
+// Varsayılan plan. Kullanıcı planı da aynı biçimde: { id, time, k, p, name?, desc?, variants? }.
+// name/desc yoksa i18n.js'deki meal.<id> metinleri kullanılır; kullanıcının eklediği öğünlerde ikisi de var.
 export const MEALS = [
   { id: "kahvalti", time: "08:00", k: 630, p: 35 },
   { id: "ara", time: "11:00", k: 280, p: 7 },
@@ -97,9 +124,9 @@ export function hasData(day) {
 }
 
 // k/p: yenen. projK/projP: işaretlenmemiş öğünler de yenirse (sadece bugün ve sonrası).
-export function dayTotals(day, open) {
+export function dayTotals(day, open, meals = MEALS) {
   let k = 0, p = 0, restK = 0, restP = 0;
-  for (const meal of MEALS) {
+  for (const meal of meals) {
     const v = mealValues(meal, day);
     const state = day.meals?.[meal.id];
     if (state == null) { restK += v.k; restP += v.p; } else { k += v.k * state; p += v.p * state; }
@@ -110,6 +137,30 @@ export function dayTotals(day, open) {
   for (const c of day.custom || []) { k += Number(c.k) || 0; p += Number(c.p) || 0; }
   return { k, p, projK: open ? k + restK : k, projP: open ? p + restP : p, any: hasData(day) };
 }
+
+// Hiçbiri işaretlenmemiş bir günde planın toplamı (akşam doyurucu, gece süt sayılır).
+export function planTotals(meals) {
+  const tot = dayTotals(blankDay(), true, meals);
+  return { k: tot.projK, p: tot.projP };
+}
+
+// Planı hedefe oranla büyütür ya da küçültür. Oran çok değişirse varsayılan içerik metinleri
+// (ör. "3 yumurta + ...") artık miktarı anlatmaz; onlar boşaltılır, kullanıcı kendi yazar.
+export function scaleMeals(meals, targets) {
+  const total = planTotals(meals);
+  const fk = total.k ? targets.kcal / total.k : 1;
+  const fp = total.p ? targets.protein / total.p : 1;
+  const off = Math.abs(fk - 1) > 0.12;
+  const sc = (v) => ({ k: Math.round((v.k * fk) / 10) * 10, p: Math.round(v.p * fp) });
+  return meals.map((m) => {
+    const out = { ...m, ...(m.variants ? {} : sc(m)) };
+    if (m.variants) out.variants = Object.fromEntries(Object.entries(m.variants).map(([key, v]) => [key, sc(v)]));
+    if (off && out.desc == null) out.desc = "";
+    return out;
+  });
+}
+
+export const sortMeals = (meals) => [...meals].sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
 
 // Eksiği en iyi kapatan, birbiriyle çakışmayan en fazla 2 öneri (her biri 1–3 ek).
 export function bestCombos(gapK, gapP) {

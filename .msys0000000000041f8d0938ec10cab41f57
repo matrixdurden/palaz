@@ -1,0 +1,57 @@
+rules_version = '2';
+
+// Kimlik: Google ile giriş. Herkes sadece kendi verisini okur ve yazar.
+// users/{uid}: hedefler. users/{uid}/days/{tarih}: öğünler ve antrenman. users/{uid}/weights/{tarih}: kilo.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider != 'anonymous'
+        && request.auth.uid == uid;
+    }
+
+    function validDate(id) {
+      return id.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function validTargets(t) {
+      return t.kcal is number && t.kcal >= 1500 && t.kcal <= 5000
+        && t.protein is number && t.protein >= 40 && t.protein <= 250;
+    }
+
+    function validProfile(p) {
+      return p.keys().hasOnly(['sex', 'age', 'height', 'weight', 'activity', 'goal'])
+        && p.sex in ['m', 'f'] && p.activity in ['low', 'mid', 'high'] && p.goal in ['gain', 'slow', 'keep']
+        && p.age is number && p.age >= 13 && p.age <= 80
+        && p.height is number && p.height >= 130 && p.height <= 220
+        && p.weight is number && p.weight >= 35 && p.weight <= 200;
+    }
+
+    match /users/{uid} {
+      allow read, delete: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['targets', 'profile', 'meals'])
+        && validTargets(request.resource.data.targets)
+        && (!('profile' in request.resource.data) || validProfile(request.resource.data.profile))
+        && (!('meals' in request.resource.data)
+          || (request.resource.data.meals is list && request.resource.data.meals.size() <= 12));
+
+      match /days/{date} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validDate(date)
+          && request.resource.data.meals is map
+          && request.resource.data.extras is map
+          && request.resource.data.custom is list && request.resource.data.custom.size() <= 50;
+      }
+
+      match /weights/{date} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && validDate(date)
+          && request.resource.data.keys().hasOnly(['kg'])
+          && request.resource.data.kg is number
+          && request.resource.data.kg >= 30 && request.resource.data.kg <= 150;
+      }
+    }
+  }
+}

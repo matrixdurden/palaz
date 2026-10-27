@@ -6,8 +6,9 @@ A small app for gaining weight: log your meals, see how to close the gap when yo
 
 *palazlanmak* (Turkish): to fill out, grow strong.
 
-- **Today:** six planned meals, each marked *Skipped / Half / Full*. If the day is heading short of your goal, palaz suggests 1–3 additions that close the gap ("2 eggs + 1 glass of milk") and adds them with one tap.
-- **What did you eat?** Snap a photo or type a line ("a plate of manti, half a bread"). A barcode in the photo is looked up in [Open Food Facts](https://world.openfoodfacts.org); anything else goes to a small Cloudflare Worker that asks Llama 4 Scout on Workers AI (free daily quota) for an estimate you can adjust before adding. Only signed-in users can use it. Photos are sent for the estimate and not stored. A few words next to the photo ("manti") make estimates much better.
+- **Your plan:** on first sign-in you enter sex, age, height, weight, activity and goal (gain, gain slowly, maintain); palaz works out your daily calories (Mifflin-St Jeor) and protein and scales a starter meal plan to it. Meal times, names, contents and values are editable in Settings. Past days keep the plan they were logged with.
+- **Today:** your planned meals, each marked *Skipped / Half / Full*. If the day is heading short of your goal, palaz suggests 1–3 additions that close the gap ("2 eggs + 1 glass of milk") and adds them with one tap.
+- **What did you eat?** Snap a photo or type a line ("a plate of manti, half a bread"). A barcode in the photo is looked up in [Open Food Facts](https://world.openfoodfacts.org); anything else goes to a small Cloudflare Worker that asks Qwen 3.8 on Workers AI (free daily quota, Llama 4 Scout as fallback) for an estimate you can adjust before adding. Only signed-in users can use it. Photos are sent for the estimate and not stored. It works best with packaged food: a clear photo of the nutrition table gives exact values.
 - **Workout:** a no-equipment A/B routine. Log reps per set; last session's numbers show as hints, and palaz tells you when a move is ready to get harder.
 - **Progress:** last 7 days at a glance, streak, average calories, weight chart. If your weight hasn't moved in two weeks, it offers +200 kcal.
 
@@ -48,8 +49,8 @@ test/              plan.js and nutrition.js tests
 
 Data, per signed-in user:
 
-- `users/{uid}`: `targets: { kcal, protein }`
-- `users/{uid}/days/{YYYY-MM-DD}`: `meals` (meal → 0 / 0.5 / 1), `aksamTip`, `geceTip`, `extras` (food → count), `custom` (`[{ name, k, p }]`), `workout` (`{ type: "A" | "B", sets: { exercise: [reps] } }`)
+- `users/{uid}`: `targets: { kcal, protein }`, `profile: { sex, age, height, weight, activity, goal }`, `meals` (`[{ id, time, k, p, name?, desc?, variants? }]`, missing = default plan)
+- `users/{uid}/days/{YYYY-MM-DD}`: `meals` (meal → 0 / 0.5 / 1), `aksamTip`, `geceTip`, `extras` (food → count), `custom` (`[{ name, k, p }]`), `workout` (`{ type: "A" | "B", sets: { exercise: [reps] } }`), `plan` (the meal plan in effect that day)
 - `users/{uid}/weights/{YYYY-MM-DD}`: `kg`
 
 ## Deploying your own copy
@@ -62,7 +63,7 @@ Data, per signed-in user:
 
 ## Türkçe
 
-Kilo almak için küçük bir uygulama: öğünlerini işaretle, gün eksik kalacaksa nasıl kapatacağını gör, evde antrenmanını ve kilonu takip et. Plan dışı bir şey yediysen fotoğrafını çek ya da yaz: barkod varsa Open Food Facts'ten, yoksa yapay zekâdan (Cloudflare Workers AI) kalori ve protein tahmini gelir. Türkçe ve İngilizce, açık ve koyu tema. Tarayıcı menüsünden **Uygulamayı yükle** ile telefona eklenir.
+Kilo almak için küçük bir uygulama. İlk girişte yaş, boy, kilo, hareket ve hedefini girersin; günlük kalori ve protein hedefin hesaplanır, öğün planı ona göre kurulur. Öğün saatlerini, adlarını ve içeriklerini Ayarlar'dan değiştirebilirsin. Öğünlerini işaretle, gün eksik kalacaksa nasıl kapatacağını gör, evde antrenmanını ve kilonu takip et. Plan dışı bir şey yediysen fotoğrafını çek ya da yaz: barkod varsa Open Food Facts'ten, yoksa yapay zekâdan (Cloudflare Workers AI) kalori ve protein tahmini gelir. Türkçe ve İngilizce, açık ve koyu tema. Tarayıcı menüsünden **Uygulamayı yükle** ile telefona eklenir.
 
 ## License
 

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   MEALS, POOL, blankDay, dayTotals, bestCombos, applyCombo, variant, weightTrend,
   addDays, nextWorkoutType, lastSets, readyToProgress, PROGRAM,
+  calcTargets, validProfile, scaleMeals, planTotals, sortMeals,
 } from "../public/plan.js";
 
 test("boş gün: plan tamamen yenirse hedefe yakın", () => {
@@ -76,4 +77,43 @@ test("zorlaştırma: tüm setler aralığın üstünde", () => {
   assert.equal(readyToProgress(sinav, [20, 20, 20, 20]), true);
   assert.equal(readyToProgress(sinav, [20, 20, 19, 20]), false);
   assert.equal(readyToProgress(sinav, [20, 20, 20]), false);
+});
+
+const me = { sex: "m", age: 17, height: 170, weight: 60, activity: "mid", goal: "gain" };
+
+test("hedef hesabı: Mifflin-St Jeor × hareket + hedef, 50'ye yuvarlı", () => {
+  // bazal 1582,5 × 1,55 + 400 = 2853 → 2850; protein 60 × 1,8 = 108 → 110
+  assert.deepEqual(calcTargets(me), { kcal: 2850, protein: 110 });
+  assert.deepEqual(calcTargets({ ...me, sex: "f", goal: "keep", activity: "low" }), { kcal: 1950, protein: 95 });
+});
+
+test("profil sınırları", () => {
+  assert.equal(validProfile(me), true);
+  assert.equal(validProfile({ ...me, age: 12 }), false);
+  assert.equal(validProfile({ ...me, sex: null }), false);
+  assert.equal(validProfile({ ...me, height: Number.NaN }), false);
+  assert.equal(validProfile(null), false);
+});
+
+test("plan hedefe ölçeklenir; çok değişirse hazır içerik metni boşalır", () => {
+  const near = scaleMeals(MEALS, { kcal: 2850, protein: 110 });
+  assert.ok(Math.abs(planTotals(near).k - 2850) <= 30, `k ${planTotals(near).k}`);
+  assert.equal(near[0].desc, undefined);
+
+  const small = scaleMeals(MEALS, { kcal: 2000, protein: 95 });
+  assert.ok(Math.abs(planTotals(small).k - 2000) <= 30, `k ${planTotals(small).k}`);
+  assert.ok(Math.abs(planTotals(small).p - 95) <= 3, `p ${planTotals(small).p}`);
+  assert.equal(small[0].desc, "");
+  assert.ok(small.find((m) => m.id === "gece").variants.smoothie.k < 550);
+
+  const own = scaleMeals([{ id: "x", time: "09:00", name: "Kahvaltı", desc: "yulaf", k: 1000, p: 50 }], { kcal: 2000, protein: 100 });
+  assert.deepEqual(own[0], { id: "x", time: "09:00", name: "Kahvaltı", desc: "yulaf", k: 2000, p: 100 });
+});
+
+test("gün kendi öğün planıyla hesaplanır", () => {
+  const meals = [{ id: "a", time: "08:00", k: 500, p: 20 }, { id: "b", time: "13:00", k: 700, p: 30 }];
+  const t = dayTotals({ ...blankDay(), meals: { a: 1, kahvalti: 1 } }, true, meals);
+  assert.equal(t.k, 500); // planda olmayan öğünün işareti sayılmaz
+  assert.equal(t.projK, 1200);
+  assert.deepEqual(sortMeals([meals[1], meals[0]]).map((m) => m.id), ["a", "b"]);
 });
