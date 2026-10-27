@@ -1,15 +1,11 @@
-// Yemek tanıma: fotoğraftaki barkod → Open Food Facts, fotoğraf ya da yazı → Gemini (Firebase AI Logic).
+// Yemek tanıma: fotoğraftaki barkod → Open Food Facts, fotoğraf ya da yazı → Cloudflare Workers AI (worker/).
 
-import {
-  getAI, getGenerativeModel, GoogleAIBackend, Schema,
-} from "https://www.gstatic.com/firebasejs/12.0.0/firebase-ai.js";
-import { app } from "./firebase.js";
+import { auth } from "./firebase.js";
+import { aiUrl } from "./firebase-config.js";
 import { parseOffProduct, cleanEstimate } from "./nutrition.js";
 import { store } from "./ui.js";
 
-// Ücretsiz katmanda, görsel kabul eden kararlı model (firebase.google.com/docs/ai-logic/models).
-const MODEL = "gemini-3.5-flash";
-const DAILY_LIMIT = 30; // ücretsiz kotayı açık kaynak kopyalar da kullandığı için kişi başı sınır
+const DAILY_LIMIT = 30; // Workers AI'ın ücretsiz günlük kotası herkes için ortak; kişi başı sınır
 
 // --- Barkod ------------------------------------------------------------------
 
@@ -63,49 +59,6 @@ export async function loadImage(file) {
 
 // --- Yapay zekâ tahmini --------------------------------------------------------
 
-let model = null;
-
-function getModel() {
-  if (!app) throw Object.assign(new Error("no firebase app"), { code: "unavailable" });
-  model ??= getGenerativeModel(getAI(app, { backend: new GoogleAIBackend() }), {
-    model: MODEL,
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: Schema.object({
-        properties: {
-          items: Schema.array({
-            items: Schema.object({
-              properties: {
-                name: Schema.string(),
-                grams: Schema.number(),
-                kcal: Schema.number(),
-                protein: Schema.number(),
-              },
-            }),
-          }),
-          note: Schema.string(),
-        },
-      }),
-    },
-  });
-  return model;
-}
-
-const LANG_NAME = { tr: "Turkish", en: "English" };
-
-function prompt(text, lang) {
-  return [
-    "You estimate the nutrition of food someone has just eaten, for a calorie and protein log.",
-    "The user lives in Turkey: assume typical Turkish home, street and restaurant portions unless told otherwise.",
-    "From the photo and/or the description, list each distinct food or drink with:",
-    "name (short, in " + LANG_NAME[lang] + "), grams eaten (estimate), kcal, protein in grams.",
-    "Include cooking oil or butter that is very likely in the dish. Prefer the description over the photo when they disagree.",
-    "If there is no food or drink, return an empty items list.",
-    "note: one short sentence in " + LANG_NAME[lang] + " naming the biggest uncertainty (for example whether it was fried), or an empty string.",
-    text ? `Description: ${text}` : "No description, use the photo.",
-  ].join("\n");
-}
-
 function useQuota() {
   const key = `ai.${new Date().toISOString().slice(0, 10)}`;
   const used = Number(store.get(key) || 0);
@@ -113,17 +66,24 @@ function useQuota() {
   store.set(key, String(used + 1));
 }
 
-// → { items: [{ name, grams, kcal, protein }], note }
+const fail = (code) => Object.assign(new Error(code), { code });
+
+// → { items: [{ name, grams, kcal, protein }], note }. Hata kodları: quota, failed.
 export async function estimateFood({ text, image, lang }) {
   useQuota();
-  const parts = [{ text: prompt(text, lang) }];
-  if (image) parts.push({ inlineData: { mimeType: "image/jpeg", data: image.base64 } });
+  const token = await auth?.currentUser?.getIdToken().catch(() => null);
+  let res;
   try {
-    const result = await getModel().generateContent(parts);
-    return cleanEstimate(JSON.parse(result.response.text()));
-  } catch (err) {
-    console.error(err);
-    const quota = /quota|429|RESOURCE_EXHAUSTED/i.test(String(err?.message));
-    throw Object.assign(new Error("estimate failed"), { code: quota ? "quota" : "failed" });
+    res = await fetch(aiUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      body: JSON.stringify({ text, image: image?.base64, lang }),
+    });
+  } catch {
+    throw fail("failed");
   }
+  const data = await res.json().catch(() => null);
+  if (res.status === 429) throw fail("quota");
+  if (!res.ok || !data) throw fail("failed");
+  return cleanEstimate(data);
 }

@@ -1,0 +1,14 @@
+# Yemek tahmini için Cloudflare Worker (Workers AI, ücretsiz günlük kota).
+name = "palaz-ai"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+# Kişi başı dakikada en fazla 10 tahmin.
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+simple = { limit = 10, period = 60 }
