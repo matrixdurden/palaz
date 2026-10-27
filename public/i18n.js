@@ -39,6 +39,18 @@ const TR = {
   gapPick: "Kapatmak için birini seç:",
   switchSmoothie: "Gece sütünü smoothie yap", switchBtn: "Smoothie yap", ateIt: "Yedim",
 
+  // Ne yedin? (fotoğraf, barkod, yazı)
+  scanTitle: "Ne yedin?", scanPlaceholder: "ör. 1 tabak mantı, yarım ekmek", scanPhoto: "Fotoğraf çek",
+  scanAsk: "Hesapla", scanHint: "Yaz ya da fotoğraf çek. Paketli üründe barkodun fotoğrafını çek.",
+  scanLooking: "Bakılıyor…", scanBarcode: "Barkod {c} bulundu, ürün aranıyor…",
+  scanNotInDb: "Ürün veritabanında yok, fotoğraftan tahmin ediliyor…", scanNotFound: "Bu barkodlu ürün bulunamadı.",
+  scanPer100: "100 g'da {k} kcal · {p} g protein", grams: "g", gramsLabel: "{x}: gram",
+  scanEstimate: "Tahmini değerler; gerekirse gramı düzelt.", scanSource: "Kaynak: Open Food Facts",
+  addToday: "Ekle", cancel: "Vazgeç", scanAdded: "{n} kalem eklendi",
+  scanNothing: "Yiyecek bulunamadı. Biraz daha ayrıntı yaz.",
+  aiFailed: "Tahmin alınamadı. Biraz sonra tekrar dene.", aiQuota: "Bugünlük tahmin hakkı doldu.",
+  offFailed: "Ürün bilgisine ulaşılamadı. İnternetini kontrol et.",
+
   // Antrenman
   workout: "Antrenman", workoutsLast7: "Son 7 gün: {n}", dayA: "A günü", dayB: "B günü", workoutDay: "Antrenman günü",
   workoutSaved: "Kaydedildi.", workoutNext: "Sıradaki: {x} günü. Her setten sonra tekrar sayısını yaz.",
@@ -139,6 +151,17 @@ const EN = {
   gapWhyRest: "With the remaining meals you'll end at ~{k} kcal.", gapWhyNow: "You're at {k} kcal.",
   gapPick: "Pick one to close the gap:",
   switchSmoothie: "Turn the night milk into a smoothie", switchBtn: "Make it a smoothie", ateIt: "Ate it",
+
+  scanTitle: "What did you eat?", scanPlaceholder: "e.g. a plate of pasta, 2 slices of bread", scanPhoto: "Take a photo",
+  scanAsk: "Estimate", scanHint: "Type it or take a photo. For packaged food, photograph the barcode.",
+  scanLooking: "Looking…", scanBarcode: "Found barcode {c}, looking up the product…",
+  scanNotInDb: "Product not in the database, estimating from the photo…", scanNotFound: "No product found for this barcode.",
+  scanPer100: "Per 100 g: {k} kcal · {p} g protein", grams: "g", gramsLabel: "{x}: grams",
+  scanEstimate: "Estimates. Adjust the grams if needed.", scanSource: "Source: Open Food Facts",
+  addToday: "Add", cancel: "Cancel", scanAdded: "Added {n} items",
+  scanNothing: "No food found. Add a bit more detail.",
+  aiFailed: "Couldn't get an estimate. Try again shortly.", aiQuota: "Today's estimate limit is used up.",
+  offFailed: "Couldn't reach the product database. Check your connection.",
 
   workout: "Workout", workoutsLast7: "Last 7 days: {n}", dayA: "Day A", dayB: "Day B", workoutDay: "Workout day",
   workoutSaved: "Saved.", workoutNext: "Next up: day {x}. Log your reps after each set.",

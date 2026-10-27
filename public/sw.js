@@ -1,10 +1,10 @@
 // Uygulama dosyalarını önbelleğe alır ki internet yokken de açılsın.
 // İnternet varsa her zaman en güncel sürüm gelir.
 
-const CACHE = "palaz-v1";
+const CACHE = "palaz-v2";
 const SHELL = [
   "/", "/index.html", "/style.css", "/app.js", "/plan.js", "/data.js", "/ui.js", "/firebase.js",
-  "/firebase-config.js", "/install.js", "/i18n.js", "/manifest.webmanifest", "/manifest-dark.webmanifest", "/icons/icon.svg", "/icons/icon-192.png",
+  "/firebase-config.js", "/install.js", "/i18n.js", "/nutrition.js", "/scan.js", "/manifest.webmanifest", "/manifest-dark.webmanifest", "/icons/icon.svg", "/icons/icon-192.png",
 ];
 
 self.addEventListener("install", (event) => {

@@ -80,6 +80,17 @@
     <main id="tab-today" class="tab">
       <section class="card" id="summary"></section>
       <section class="card fix" id="fix" hidden></section>
+      <section class="card scan">
+        <h2 data-i18n="scanTitle"></h2>
+        <form class="scan-row" id="scan-form">
+          <input id="scan-text" maxlength="160" autocomplete="off" enterkeyhint="send" data-i18n-placeholder="scanPlaceholder" data-i18n-label="scanTitle">
+          <button id="scan-camera" class="icon cam" type="button" data-i18n-label="scanPhoto"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></button>
+          <button id="scan-ask" class="ink" type="submit" data-i18n="scanAsk"></button>
+        </form>
+        <input id="scan-photo" type="file" accept="image/*" capture="environment" hidden>
+        <p class="muted small" data-i18n="scanHint"></p>
+        <div id="scan-result" class="scan-result" aria-live="polite" hidden></div>
+      </section>
       <section class="card">
         <h2 data-i18n="meals"></h2>
         <div id="meals"></div>

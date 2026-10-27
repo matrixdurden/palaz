@@ -330,3 +330,22 @@ details.card[open] > summary h2::after { content: " −"; }
 details.card:not([open]) { gap: 0; }
 
 #login .lang-seg { align-self: center; width: 220px; margin-top: 8px; }
+
+/* --- Ne yedin? ----------------------------------------------------------- */
+
+.scan-row { display: flex; gap: 8px; align-items: center; }
+.scan-row input { flex: 1; }
+.scan-row .cam { width: 44px; flex: none; border-color: var(--border); }
+.scan-result { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--border); }
+.scan-status { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.scan-status > div { min-width: 0; }
+.thumb { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; flex: none; }
+.scan-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.scan-name { flex: 1 1 100%; font-weight: 600; }
+.scan-item .num { flex: 1; color: var(--text-2); font-size: 0.86rem; }
+.grams { display: flex; align-items: center; gap: 6px; color: var(--text-2); }
+.grams input { width: 84px; height: 40px; text-align: center; padding: 0 6px; }
+.row.end { justify-content: flex-end; }
+.spinner { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 2.5px solid var(--border); border-top-color: var(--prot); }
+@media (prefers-reduced-motion: no-preference) { .spinner { animation: spin 0.8s linear infinite; } }
+@keyframes spin { to { transform: rotate(360deg); } }

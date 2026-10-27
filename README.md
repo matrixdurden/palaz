@@ -7,6 +7,7 @@ A small app for gaining weight: log your meals, see how to close the gap when yo
 *palazlanmak* (Turkish): to fill out, grow strong.
 
 - **Today:** six planned meals, each marked *Skipped / Half / Full*. If the day is heading short of your goal, palaz suggests 1–3 additions that close the gap ("2 eggs + 1 glass of milk") and adds them with one tap.
+- **What did you eat?** Snap a photo or type a line ("a plate of manti, half a bread"). A barcode in the photo is looked up in [Open Food Facts](https://world.openfoodfacts.org); anything else goes to Gemini (via Firebase AI Logic) for an estimate you can adjust before adding. Photos are sent for the estimate and not stored.
 - **Workout:** a no-equipment A/B routine. Log reps per set; last session's numbers show as hints, and palaz tells you when a move is ready to get harder.
 - **Progress:** last 7 days at a glance, streak, average calories, weight chart. If your weight hasn't moved in two weeks, it offers +200 kcal.
 
@@ -18,10 +19,10 @@ No build step. The site in `public/` is served as is.
 
 ```bash
 npm run dev    # http://localhost:5180, demo mode: data stays in the browser
-npm test       # tests for public/plan.js
+npm test       # tests for plan.js and nutrition.js
 ```
 
-On `localhost` the app never talks to Firebase.
+On `localhost` the app doesn't sign in or touch the database. Food estimates still call Gemini, so they count against your project's free quota.
 
 ```
 public/
@@ -29,6 +30,8 @@ public/
   style.css        look (light/dark)
   app.js           sign-in, tabs, rendering, events
   plan.js          meals, foods, workout program and all calculations
+  scan.js          photo/barcode → Open Food Facts or Gemini
+  nutrition.js     parsing product data and AI estimates
   i18n.js          Turkish and English text
   data.js          Firestore reads/writes (localStorage in demo mode)
   ui.js            small helpers, theme
@@ -46,14 +49,14 @@ Data, per signed-in user:
 
 ## Deploying your own copy
 
-1. Create a Firebase project. Turn on **Authentication → Google** and create a **Firestore** database.
+1. Create a Firebase project. Turn on **Authentication → Google**, create a **Firestore** database, and in **AI Logic** click *Get started* with the Gemini Developer API (free tier, no billing).
 2. Add a web app and paste its config into `public/firebase-config.js`.
 3. Put your project ID in `.firebaserc` and your hosting site in `firebase.json`.
 4. `npx firebase-tools login`, then `npm run deploy`.
 
 ## Türkçe
 
-Kilo almak için küçük bir uygulama: öğünlerini işaretle, gün eksik kalacaksa nasıl kapatacağını gör, evde antrenmanını ve kilonu takip et. Türkçe ve İngilizce, açık ve koyu tema. Tarayıcı menüsünden **Uygulamayı yükle** ile telefona eklenir.
+Kilo almak için küçük bir uygulama: öğünlerini işaretle, gün eksik kalacaksa nasıl kapatacağını gör, evde antrenmanını ve kilonu takip et. Plan dışı bir şey yediysen fotoğrafını çek ya da yaz: barkod varsa Open Food Facts'ten, yoksa yapay zekâdan (Gemini) kalori ve protein tahmini gelir. Türkçe ve İngilizce, açık ve koyu tema. Tarayıcı menüsünden **Uygulamayı yükle** ile telefona eklenir.
 
 ## License
 

@@ -9,6 +9,7 @@ import {
   MEALS, FOODS, POOL, PROGRAM, blankDay, variant, mealValues, dayTotals, bestCombos, applyCombo,
   weightTrend, nextWorkoutType, lastSets, readyToProgress, dateKey, parseKey, addDays,
 } from "./plan.js";
+import { isBarcode, scale, rescale } from "./nutrition.js";
 import { t, has, lang, setLang, applyStatic, locale, fmt, kg } from "./i18n.js";
 import { $, esc, toast, vibrate, store, theme, setTheme } from "./ui.js";
 import "./install.js";
@@ -190,6 +191,160 @@ function renderFix(d, dy, tot) {
       <div><ul>${o.idx.map((j) => `<li>${t(`pool.${POOL[j].id}`)}</li>`).join("")}</ul><span class="num small">+${fmt(o.k)} kcal · +${fmt(o.p)} g</span></div>
       <button type="button" class="ink small" data-opt="${i}">${t("ateIt")}</button>
     </div>`).join("")}`;
+}
+
+// --- Ne yedin? (fotoğraf, barkod, yazı) ---------------------------------------
+
+// null | { busy } | { error } | { product, grams } | { items: [{ name, grams, kcal, protein, g }], note }
+// Hepsinde isteğe bağlı image: fotoğrafın küçük hali.
+let scan = null;
+let scanRun = 0; // eski bir isteğin sonucu yenisinin üstüne yazmasın
+const loadScan = () => import("./scan.js"); // yapay zekâ kütüphanesi sadece kullanılınca yüklenir
+
+function setScan(next) {
+  scan = next;
+  renderScan();
+}
+
+const scanActions = () => `<div class="row end">
+  <button type="button" class="ghost small" data-scan="cancel">${t("cancel")}</button>
+  <button type="button" class="ink small" data-scan="add">${t("addToday")}</button>
+</div>`;
+
+const gramsInput = (key, value, name) => `<label class="grams">
+  <input class="num" type="number" inputmode="numeric" min="0" max="2000" data-grams="${key}" value="${value}" aria-label="${esc(t("gramsLabel", { x: name }))}"><span>${t("grams")}</span>
+</label>`;
+
+function renderScan() {
+  const el = $("#scan-result");
+  $("#scan-ask").disabled = Boolean(scan?.busy);
+  $("#scan-camera").disabled = Boolean(scan?.busy);
+  if (!scan) {
+    el.hidden = true;
+    el.innerHTML = "";
+    return;
+  }
+  el.hidden = false;
+  const thumb = scan.image ? `<img class="thumb" src="${scan.image}" alt="">` : "";
+  if (scan.busy) {
+    el.innerHTML = `<div class="scan-status">${thumb}<span class="spinner" aria-hidden="true"></span><span>${esc(scan.busy)}</span></div>`;
+  } else if (scan.error) {
+    el.innerHTML = `<div class="scan-status">${thumb}<span>${esc(scan.error)}</span></div>
+      <div class="row end"><button type="button" class="ghost small" data-scan="cancel">${t("close")}</button></div>`;
+  } else if (scan.product) {
+    const pr = scan.product;
+    el.innerHTML = `<div class="scan-status">${thumb}<div><strong>${esc(pr.name)}</strong>
+      <p class="muted small">${t("scanPer100", { k: fmt(pr.kcal100), p: fmt(pr.protein100) })}</p></div></div>
+      <div class="scan-item">${gramsInput("product", scan.grams, pr.name)}<span class="num" data-out="0"></span></div>
+      <p class="muted small">${t("scanSource")}</p>
+      ${scanActions()}`;
+  } else {
+    el.innerHTML = `<div class="scan-status">${thumb}<span class="muted small">${t("scanEstimate")}</span></div>
+      ${scan.items.map((it, i) => `<div class="scan-item">
+        <span class="scan-name">${esc(it.name)}</span>
+        ${gramsInput(i, it.g, it.name)}
+        <span class="num" data-out="${i}"></span>
+        <button type="button" class="icon sm" data-scan="del" data-i="${i}" aria-label="${esc(`${t("delete")}: ${it.name}`)}"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>`).join("")}
+      ${scan.note ? `<p class="hint-line">${esc(scan.note)}</p>` : ""}
+      ${scanActions()}`;
+  }
+  updateScanTotals();
+}
+
+// Ekranda seçili gramlara göre eklenecek kalemler.
+function scanValues() {
+  if (scan?.product) {
+    const pr = scan.product;
+    return [{ name: pr.name, k: Math.round(scale(pr.kcal100, scan.grams)), p: Math.round(scale(pr.protein100, scan.grams)), src: "barcode" }];
+  }
+  return (scan?.items || []).map((it) => ({ name: it.name, ...rescale(it, it.g), src: "ai" }));
+}
+
+function updateScanTotals() {
+  const values = scanValues();
+  for (const out of document.querySelectorAll("#scan-result [data-out]")) {
+    const v = values[Number(out.dataset.out)];
+    out.textContent = v ? `${fmt(v.k)} kcal · ${fmt(v.p)} g` : "";
+  }
+}
+
+async function runProduct(code, image) {
+  const run = ++scanRun;
+  setScan({ busy: t("scanBarcode", { c: code }), image: image?.dataUrl });
+  try {
+    const { lookupBarcode } = await loadScan();
+    const product = await lookupBarcode(code, lang);
+    if (run !== scanRun) return;
+    if (product) setScan({ product, grams: product.grams, image: image?.dataUrl });
+    else if (image) runEstimate({ text: $("#scan-text").value.trim(), image, busy: t("scanNotInDb") });
+    else setScan({ error: t("scanNotFound") });
+  } catch {
+    if (run === scanRun) setScan({ error: t("offFailed"), image: image?.dataUrl });
+  }
+}
+
+async function runEstimate({ text, image, busy = t("scanLooking") }) {
+  const run = ++scanRun;
+  setScan({ busy, image: image?.dataUrl });
+  try {
+    const { estimateFood } = await loadScan();
+    const res = await estimateFood({ text, image, lang });
+    if (run !== scanRun) return;
+    if (!res.items.length) setScan({ error: t("scanNothing"), image: image?.dataUrl });
+    else setScan({ items: res.items.map((it) => ({ ...it, g: it.grams })), note: res.note, image: image?.dataUrl });
+  } catch (err) {
+    if (run === scanRun) setScan({ error: t(err.code === "quota" ? "aiQuota" : "aiFailed"), image: image?.dataUrl });
+  }
+}
+
+$("#scan-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = $("#scan-text").value.trim();
+  if (!text || scan?.busy) return;
+  $("#scan-text").blur();
+  if (isBarcode(text)) runProduct(text);
+  else runEstimate({ text });
+});
+
+$("#scan-camera").addEventListener("click", () => $("#scan-photo").click());
+
+// Fotoğrafta barkod varsa ürün veritabanına, yoksa yapay zekâya (yazılan açıklamayla birlikte) gider.
+$("#scan-photo").addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
+  const run = ++scanRun;
+  setScan({ busy: t("scanLooking") });
+  try {
+    const { loadImage, findBarcode } = await loadScan();
+    const image = await loadImage(file);
+    const code = await findBarcode(image.bitmap);
+    if (run !== scanRun) return;
+    if (code && isBarcode(code)) runProduct(code, image);
+    else runEstimate({ text: $("#scan-text").value.trim(), image });
+  } catch {
+    if (run === scanRun) setScan({ error: t("aiFailed") });
+  }
+});
+
+$("#scan-result").addEventListener("input", (e) => {
+  const input = e.target.closest("input[data-grams]");
+  if (!input || !scan) return;
+  const g = Math.max(0, Math.min(2000, parseInt(input.value, 10) || 0));
+  if (input.dataset.grams === "product") scan.grams = g;
+  else scan.items[Number(input.dataset.grams)].g = g;
+  updateScanTotals();
+});
+
+function addScan() {
+  const values = scanValues().filter((v) => v.k > 0);
+  if (!values.length) return;
+  editDay(sel, (dy) => { dy.custom = [...(dy.custom || []), ...values]; });
+  toast(t("scanAdded", { n: values.length }));
+  $("#scan-text").value = "";
+  scanRun++;
+  setScan(null);
 }
 
 // --- Antrenman ---------------------------------------------------------------
@@ -395,6 +550,14 @@ document.addEventListener("click", (e) => {
   } else if (b.dataset.bump) {
     setTargets(state.targets.kcal + Number(b.dataset.bump), state.targets.protein);
     toast(t("goalChanged", { k: fmt(state.targets.kcal) }));
+  } else if (b.dataset.scan === "add") {
+    addScan();
+  } else if (b.dataset.scan === "cancel") {
+    scanRun++;
+    setScan(null);
+  } else if (b.dataset.scan === "del") {
+    scan.items.splice(Number(b.dataset.i), 1);
+    setScan(scan.items.length ? scan : null);
   } else if (b.dataset.tab) {
     setTab(b.dataset.tab);
   } else if (b.dataset.lang) {
@@ -402,6 +565,7 @@ document.addEventListener("click", (e) => {
     markLang();
     renderSettings();
     render();
+    renderScan();
   } else if (b.dataset.themeMode) {
     setTheme(b.dataset.themeMode);
     renderSettings();
