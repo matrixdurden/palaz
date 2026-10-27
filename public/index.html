@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F1F4EF">
+  <meta name="description" content="Track meals, workouts and weight to gain weight. Kilo almak için öğün, antrenman ve tartı takibi.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="palaz">
+  <title>palaz</title>
+  <!-- Seçilen tema ilk boyamadan önce uygulansın (beyaz parlama olmasın). -->
+  <style>
+    html { background: #F1F4EF; }
+    @media (prefers-color-scheme: dark) { html:not([data-theme="light"]) { background: #111613; } }
+    html[data-theme="dark"] { background: #111613; }
+  </style>
+  <script>
+    (function () {
+      var mode = null;
+      try { mode = localStorage.getItem("palaz.theme"); } catch (e) {}
+      if (mode) document.documentElement.dataset.theme = mode;
+      var dark = mode === "dark" || (!mode && matchMedia("(prefers-color-scheme: dark)").matches);
+      document.querySelector('meta[name="theme-color"]').content = dark ? "#111613" : "#F1F4EF";
+      document.head.insertAdjacentHTML("beforeend", '<link rel="manifest" href="/manifest' + (dark ? "-dark" : "") + '.webmanifest">');
+    })();
+  </script>
+  <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div id="loading" class="loading" aria-hidden="true">
+    <img src="/icons/icon.svg" alt="">
+  </div>
+
+  <!-- Giriş -->
+  <main id="login" hidden>
+    <div class="hero">
+      <img class="hero-icon" src="/icons/icon.svg" alt="">
+      <h1 class="wordmark">palaz</h1>
+      <p data-i18n="tagline"></p>
+    </div>
+    <button id="google" class="google block" type="button">
+      <svg class="g-logo" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      <span data-i18n="continueGoogle"></span>
+    </button>
+    <p class="hint" data-i18n="loginHint"></p>
+    <p id="login-error" class="error" role="alert"></p>
+    <button id="install-login" class="block ghost" type="button" hidden data-i18n="installApp"></button>
+    <div class="seg lang-seg" role="group" aria-label="Language / Dil">
+      <button type="button" data-lang="tr">Türkçe</button>
+      <button type="button" data-lang="en">English</button>
+    </div>
+  </main>
+
+  <!-- Uygulama -->
+  <div id="app" hidden>
+    <header class="top">
+      <div class="daynav">
+        <button id="prev" class="icon" type="button" data-i18n-label="prevDay"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button id="day-label" class="day" type="button" data-i18n-label="backToToday"></button>
+        <button id="next" class="icon" type="button" data-i18n-label="nextDay"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+      <button id="settings-open" class="icon" type="button" data-i18n-label="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
+    </header>
+
+    <p id="demo-banner" class="banner" hidden data-i18n="demo"></p>
+
+    <div id="install-card" class="card install-card" hidden>
+      <span class="main"><strong data-i18n="installApp"></strong><span class="muted small" data-i18n="installHint"></span></span>
+      <button id="install-card-button" class="ink small" type="button" data-i18n="install"></button>
+      <button id="install-card-close" class="icon" type="button" data-i18n-label="close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+
+    <!-- Bugün -->
+    <main id="tab-today" class="tab">
+      <section class="card" id="summary"></section>
+      <section class="card fix" id="fix" hidden></section>
+      <section class="card">
+        <h2 data-i18n="meals"></h2>
+        <div id="meals"></div>
+      </section>
+      <details class="card extras" id="extras-box">
+        <summary><h2 data-i18n="extras"></h2><span id="extras-total" class="muted small num"></span></summary>
+        <div class="chips" id="extras"></div>
+        <form class="row" id="custom-form">
+          <input id="c-name" maxlength="60" data-i18n-placeholder="customName" data-i18n-label="customName" required>
+          <input id="c-k" class="narrow num" type="number" inputmode="numeric" min="0" max="3000" data-i18n-placeholder="kcalShort" data-i18n-label="kcal" required>
+          <input id="c-p" class="narrow num" type="number" inputmode="numeric" min="0" max="200" data-i18n-placeholder="protShort" data-i18n-label="protein">
+          <button class="ink" type="submit" data-i18n="add"></button>
+        </form>
+        <ul class="list" id="custom-list"></ul>
+      </details>
+    </main>
+
+    <!-- Antrenman -->
+    <main id="tab-workout" class="tab" hidden>
+      <section class="card">
+        <div class="card-head"><h2 data-i18n="workout"></h2><span id="workout-week" class="muted small"></span></div>
+        <div class="seg" id="workout-type" role="group" data-i18n-label="workoutDay">
+          <button type="button" data-type="A" data-i18n="dayA"></button>
+          <button type="button" data-type="B" data-i18n="dayB"></button>
+        </div>
+        <p class="muted small" id="workout-hint"></p>
+      </section>
+      <div id="exercises" class="stack"></div>
+      <details class="card">
+        <summary><h2 data-i18n="rules"></h2></summary>
+        <ul class="rules">
+          <li data-i18n="rule1"></li>
+          <li data-i18n="rule2"></li>
+          <li data-i18n="rule3"></li>
+          <li data-i18n="rule4"></li>
+        </ul>
+      </details>
+    </main>
+
+    <!-- İlerleme -->
+    <main id="tab-progress" class="tab" hidden>
+      <section class="card">
+        <h2 data-i18n="last7"></h2>
+        <div class="week" id="week"></div>
+        <div class="stats" id="week-stats"></div>
+      </section>
+      <section class="card">
+        <div class="card-head"><h2 data-i18n="weight"></h2><span id="weight-date" class="muted small"></span></div>
+        <form class="row" id="weight-form">
+          <input id="weight-input" class="narrow num" type="text" inputmode="decimal" pattern="[0-9]{2,3}([,.][0-9])?" placeholder="59,5" data-i18n-label="weight" autocomplete="off" required>
+          <span class="muted">kg</span>
+          <button id="weight-save" class="ink" type="submit"></button>
+        </form>
+        <p class="muted small" data-i18n="weighHint"></p>
+        <div id="weight-note"></div>
+        <div id="weight-chart"></div>
+        <ul class="list" id="weight-list"></ul>
+      </section>
+    </main>
+
+    <nav class="tabs" data-i18n-label="sections">
+      <button type="button" data-tab="today" aria-current="page"><svg viewBox="0 0 24 24"><path d="M4 11h16M6 11a6 6 0 0 0 12 0"/><path d="M9 7c0-1.5 1-2.5 1-4M14 7c0-1.5 1-2.5 1-4"/></svg><span data-i18n="tabToday"></span></button>
+      <button type="button" data-tab="workout"><svg viewBox="0 0 24 24"><path d="M6 8v8M3 10v4M18 8v8M21 10v4M6 12h12"/></svg><span data-i18n="tabWorkout"></span></button>
+      <button type="button" data-tab="progress"><svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/><path d="M15 6h5v5"/></svg><span data-i18n="tabProgress"></span></button>
+    </nav>
+  </div>
+
+  <!-- Ayarlar -->
+  <dialog id="settings">
+    <form method="dialog" class="menu">
+      <h3 data-i18n="settings"></h3>
+      <p id="account-email" class="muted center small"></p>
+      <p class="label" data-i18n="dailyGoal"></p>
+      <div class="stepper"><button type="button" id="k-minus" data-i18n-label="kcalDown">−</button><b id="k-target" class="num"></b><button type="button" id="k-plus" data-i18n-label="kcalUp">+</button></div>
+      <div class="stepper"><button type="button" id="p-minus" data-i18n-label="protDown">−</button><b id="p-target" class="num"></b><button type="button" id="p-plus" data-i18n-label="protUp">+</button></div>
+      <p class="muted small center" data-i18n="goalRule"></p>
+      <p class="label" data-i18n="language"></p>
+      <div class="seg lang-seg" role="group" data-i18n-label="language">
+        <button type="button" data-lang="tr">Türkçe</button>
+        <button type="button" data-lang="en">English</button>
+      </div>
+      <p class="label" data-i18n="theme"></p>
+      <div class="seg" id="theme-seg" role="group" data-i18n-label="theme">
+        <button type="button" data-theme-mode="auto" data-i18n="themeAuto"></button>
+        <button type="button" data-theme-mode="light" data-i18n="themeLight"></button>
+        <button type="button" data-theme-mode="dark" data-i18n="themeDark"></button>
+      </div>
+      <button id="sign-out" class="block danger" type="button" data-i18n="signOut"></button>
+      <button class="block ghost" value="close" data-i18n="close"></button>
+    </form>
+  </dialog>
+
+  <!-- iPhone: ana ekrana ekleme tarifi -->
+  <dialog id="ios-install">
+    <form method="dialog" class="menu">
+      <h3 data-i18n="iosTitle"></h3>
+      <ol class="steps">
+        <li data-i18n="iosStep1"></li>
+        <li data-i18n="iosStep2"></li>
+        <li data-i18n="iosStep3"></li>
+      </ol>
+      <button class="ink block" value="close" data-i18n="ok"></button>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

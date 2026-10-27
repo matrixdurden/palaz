@@ -1,0 +1,14 @@
+{
+  "hosting": {
+    "site": "palaz",
+    "public": "public",
+    "ignore": ["**/.*"],
+    "headers": [
+      { "source": "**/*.@(html|js|css|webmanifest)", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
+      { "source": "/", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  }
+}
