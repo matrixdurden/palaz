@@ -28,7 +28,7 @@ export function setTheme(mode) {
   if (mode === "auto") document.documentElement.removeAttribute("data-theme");
   else document.documentElement.dataset.theme = mode;
   const dark = mode === "dark" || (mode === "auto" && matchMedia("(prefers-color-scheme: dark)").matches);
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#111613" : "#F1F4EF");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", dark ? "#0B0C10" : "#E7E4DD");
 }
 
 let toastTimer;

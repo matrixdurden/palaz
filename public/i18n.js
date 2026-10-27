@@ -26,6 +26,7 @@ const TR = {
   // Bugün
   kcal: "Kalori", protein: "Protein",
   withRest: "Kalan öğünlerle: {k} kcal · {p} g",
+  toGo: "{n} kaldı", goalReached: "Hedef tamam", ofGoal: "kalori",
   meals: "Öğünler", skipped: "Yemedim", half: "Yarım", full: "Tam",
   hintSmoothie: "Akşam hafifti, smoothie yap.", hintMilk: "Akşam doyurucuysa süt yeter.",
   extras: "Ekstra yediklerim", customName: "Listede yoksa (ör. döner)", kcalShort: "kcal", protShort: "prot",
@@ -142,6 +143,7 @@ const EN = {
 
   kcal: "Calories", protein: "Protein",
   withRest: "With remaining meals: {k} kcal · {p} g",
+  toGo: "{n} to go", goalReached: "Goal reached", ofGoal: "calories",
   meals: "Meals", skipped: "Skipped", half: "Half", full: "Full",
   hintSmoothie: "Light dinner, so make the smoothie.", hintMilk: "After a filling dinner, milk is enough.",
   extras: "Extra food", customName: "Not listed? (e.g. burger)", kcalShort: "kcal", protShort: "prot",

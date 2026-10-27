@@ -78,7 +78,8 @@ function render() {
 
 const longDate = (d) => parseKey(d).toLocaleDateString(locale(), { day: "numeric", month: "long", weekday: "long" });
 const shortDate = (d) => parseKey(d).toLocaleDateString(locale(), { day: "numeric", month: "short" });
-const pct = (v, max) => `${Math.min(100, (v / max) * 100).toFixed(1)}%`;
+const share = (v, max) => Math.min(100, (v / max) * 100).toFixed(1);
+const percent = (x) => new Intl.NumberFormat(locale(), { style: "percent", maximumFractionDigits: 0 }).format(Math.min(x, 9.99));
 
 function renderHeader() {
   const now = today();
@@ -92,16 +93,34 @@ function renderToday() {
   const d = sel, dy = day(d), T = state.targets;
   const tot = dayTotals(dy, d >= today());
 
+  // Dış halka kalori, iç halka protein.
+  const ring = (cls, r, v, max) => `
+    <circle class="track ${cls}" cx="60" cy="60" r="${r}"/>
+    ${v > 0 ? `<circle class="arc ${cls}" cx="60" cy="60" r="${r}" pathLength="100" stroke-dasharray="${share(v, max)} 100"/>` : ""}`;
+  const stat = (cls, name, v, max, unit) => `<div class="stat ${cls}">
+    <span class="label"><i></i>${name}</span>
+    <b class="num">${fmt(v)}<small> / ${fmt(max)}${unit}</small></b>
+    <span class="muted small">${v >= max ? t("goalReached") : t("toGo", { n: `${fmt(max - v)}${unit}` })}</span>
+  </div>`;
   $("#summary").innerHTML = `
-    <div class="meter kcal">
-      <div class="meter-top"><span class="label">${t("kcal")}</span><span class="big num">${fmt(tot.k)}<small> / ${fmt(T.kcal)}</small></span></div>
-      <div class="bar"><div class="proj" style="width:${pct(tot.projK, T.kcal)}"></div><div class="done" style="width:${pct(tot.k, T.kcal)}"></div></div>
+    <div class="summary">
+      <div class="ring-box">
+        <svg class="rings" viewBox="0 0 120 120" aria-hidden="true">
+          <defs>
+            <linearGradient id="grad-k" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="stop-k1"/><stop offset="1" class="stop-k2"/></linearGradient>
+            <linearGradient id="grad-p" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="stop-p1"/><stop offset="1" class="stop-p2"/></linearGradient>
+          </defs>
+          ${ring("k", 52, tot.k, T.kcal)}
+          ${ring("p", 38, tot.p, T.protein)}
+        </svg>
+        <div class="ring-center"><b class="num">${percent(tot.k / T.kcal)}</b><span>${t("ofGoal")}</span></div>
+      </div>
+      <div class="legend">
+        ${stat("k", t("kcal"), tot.k, T.kcal, "")}
+        ${stat("p", t("protein"), tot.p, T.protein, " g")}
+      </div>
     </div>
-    <div class="meter prot">
-      <div class="meter-top"><span class="label">${t("protein")}</span><span class="big num">${fmt(tot.p)}<small> / ${fmt(T.protein)} g</small></span></div>
-      <div class="bar"><div class="proj" style="width:${pct(tot.projP, T.protein)}"></div><div class="done" style="width:${pct(tot.p, T.protein)}"></div></div>
-    </div>
-    ${tot.projK > tot.k ? `<p class="muted small">${t("withRest", { k: fmt(tot.projK), p: fmt(tot.projP) })}</p>` : ""}`;
+    ${tot.projK > tot.k ? `<p class="muted small rest">${t("withRest", { k: fmt(tot.projK), p: fmt(tot.projP) })}</p>` : ""}`;
 
   renderFix(d, dy, tot);
 
