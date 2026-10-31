@@ -87,24 +87,26 @@ export const POOL = [
 
 // Evde ekipmansız antrenman. Gün A ve B dönüşümlü yapılır.
 // Son iki hareket boyun ve duruş için: çene hattını belirginleştirir.
+// video: hareketin MuscleWiki sayfası (musclewiki.com/exercise/<video>); hepsinde önden ve yandan video var.
+// Sadece link verilir: MuscleWiki'nin şartları videoları başka sitede oynatmayı yasaklıyor.
 export const PROGRAM = {
   A: [
-    { id: "sinav", sets: 4, range: [8, 20], unit: "reps" },
-    { id: "squat", sets: 4, range: [15, 25], unit: "reps" },
-    { id: "masa", sets: 4, range: [8, 15], unit: "reps" },
-    { id: "pike", sets: 3, range: [6, 12], unit: "reps" },
-    { id: "plank", sets: 3, range: [30, 60], unit: "sec" },
-    { id: "cene", sets: 3, range: [10, 15], unit: "reps" },
-    { id: "boyunOn", sets: 3, range: [15, 25], unit: "reps" },
+    { id: "sinav", sets: 4, range: [8, 20], unit: "reps", video: "push-up" },
+    { id: "squat", sets: 4, range: [15, 25], unit: "reps", video: "bodyweight-squat" },
+    { id: "masa", sets: 4, range: [8, 15], unit: "reps", video: "inverted-row" },
+    { id: "pike", sets: 3, range: [6, 12], unit: "reps", video: "bodyweight-pike-press" },
+    { id: "plank", sets: 3, range: [30, 60], unit: "sec", video: "forearm-plank" },
+    { id: "cene", sets: 3, range: [10, 15], unit: "reps", video: "laying-chin-tucks" },
+    { id: "boyunOn", sets: 3, range: [15, 25], unit: "reps", video: "standing-neck-flexions" },
   ],
   B: [
-    { id: "dar", sets: 4, range: [8, 20], unit: "reps" },
-    { id: "bulgar", sets: 3, range: [8, 12], unit: "reps" },
-    { id: "canta", sets: 4, range: [10, 15], unit: "reps" },
-    { id: "kopru", sets: 3, range: [15, 20], unit: "reps" },
-    { id: "bacak", sets: 3, range: [10, 15], unit: "reps" },
-    { id: "cene", sets: 3, range: [10, 15], unit: "reps" },
-    { id: "boyunArka", sets: 3, range: [15, 25], unit: "reps" },
+    { id: "dar", sets: 4, range: [8, 20], unit: "reps", video: "diamond-push-ups" },
+    { id: "bulgar", sets: 3, range: [8, 12], unit: "reps", video: "bulgarian-split-squat" },
+    { id: "canta", sets: 4, range: [10, 15], unit: "reps", video: "dumbbell-row-bilateral" },
+    { id: "kopru", sets: 3, range: [15, 20], unit: "reps", video: "glute-bridge" },
+    { id: "bacak", sets: 3, range: [10, 15], unit: "reps", video: "laying-leg-raises" },
+    { id: "cene", sets: 3, range: [10, 15], unit: "reps", video: "laying-chin-tucks" },
+    { id: "boyunArka", sets: 3, range: [15, 25], unit: "reps", video: "standing-neck-extensions" },
   ],
 };
 

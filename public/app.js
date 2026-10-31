@@ -442,6 +442,7 @@ function renderWorkout() {
     return `<section class="card exercise">
       <div class="card-head"><h3>${t(`ex.${ex.id}`)}</h3><span class="num muted small">${ex.sets} × ${ex.range[0]}–${ex.range[1]} ${t(ex.unit)}</span></div>
       ${note}
+      <a class="video-link" href="https://musclewiki.com/exercise/${ex.video}" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l5.5-3.5z"/></svg>${t("watchVideo")}</a>
       <div class="sets">${Array.from({ length: ex.sets }, (_, i) => `
         <label><span class="label">${t("set", { n: i + 1 })}</span>
         <input class="num" type="number" inputmode="numeric" min="0" max="300" data-set="${ex.id}:${i}" value="${sets[i] ?? ""}" placeholder="${prev?.sets?.[i] ?? ""}"></label>`).join("")}

@@ -355,6 +355,9 @@ dialog.wide .menu > :not(.meal-rows) { flex: none; }
 .sets input { text-align: center; padding: 0 6px; font-size: 1.1rem; font-weight: 700; }
 .rules { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--text-2); font-size: 0.9rem; }
 .exercise .hint-line { color: var(--good); }
+.video-link { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; color: var(--prot); font-weight: 700; font-size: 0.86rem; text-decoration: none; }
+.video-link svg { width: 18px; height: 18px; }
+.video-link path { fill: currentColor; stroke: none; }
 
 /* --- İlerleme ------------------------------------------------------------ */
 

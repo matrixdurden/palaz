@@ -97,6 +97,10 @@ test("profil sınırları", () => {
   assert.equal(validProfile({ ...me, target: 20 }), false);
 });
 
+test("her hareketin video sayfası var", () => {
+  for (const ex of [...PROGRAM.A, ...PROGRAM.B]) assert.match(ex.video ?? "", /^[a-z0-9-]+$/, ex.id);
+});
+
 test("VKİ ve hedef kiloya kalan süre", () => {
   assert.equal(bmiClass(bmi({ height: 180, weight: 55 })), "under");
   assert.equal(bmiClass(bmi({ height: 180, weight: 70 })), "normal");
