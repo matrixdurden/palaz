@@ -11,10 +11,26 @@ export const GOALS = { gain: 400, slow: 250, keep: 0 };
 const PROTEIN_PER_KG = { gain: 1.8, slow: 1.8, keep: 1.6 };
 
 export const PROFILE_LIMITS = { age: [13, 80], height: [130, 220], weight: [35, 200] };
+export const WEIGHT_LIMITS = [30, 200]; // tartı kayıtları (firestore.rules ile aynı)
 
+// Hedefe göre beklenen haftalık artış (kg), kurulumdaki açıklamalarla aynı.
+export const GOAL_PACE = { gain: 0.4, slow: 0.25, keep: 0 };
+
+// target (hedef kilo) isteğe bağlı.
 export function validProfile(pr) {
+  const [lo, hi] = PROFILE_LIMITS.weight;
   return Boolean(pr) && ["m", "f"].includes(pr.sex) && pr.activity in ACTIVITY && pr.goal in GOALS
-    && Object.entries(PROFILE_LIMITS).every(([key, [lo, hi]]) => pr[key] >= lo && pr[key] <= hi);
+    && Object.entries(PROFILE_LIMITS).every(([key, [a, b]]) => pr[key] >= a && pr[key] <= b)
+    && (pr.target == null || (pr.target >= lo && pr.target <= hi));
+}
+
+export const bmi = (pr) => pr.weight / (pr.height / 100) ** 2;
+export const bmiClass = (b) => (b < 18.5 ? "under" : b < 25 ? "normal" : b < 30 ? "over" : "obese");
+
+// Bu hızla hedef kiloya kaç hafta; hız yoksa ya da hedef geçildiyse 0.
+export function weeksTo(from, target, perWeek) {
+  if (!(perWeek > 0) || target <= from) return 0;
+  return Math.ceil((target - from) / perWeek);
 }
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));

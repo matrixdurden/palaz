@@ -21,7 +21,8 @@ service cloud.firestore {
     }
 
     function validProfile(p) {
-      return p.keys().hasOnly(['sex', 'age', 'height', 'weight', 'activity', 'goal'])
+      return p.keys().hasOnly(['sex', 'age', 'height', 'weight', 'activity', 'goal', 'target'])
+        && (!('target' in p) || (p.target is number && p.target >= 35 && p.target <= 200))
         && p.sex in ['m', 'f'] && p.activity in ['low', 'mid', 'high'] && p.goal in ['gain', 'slow', 'keep']
         && p.age is number && p.age >= 13 && p.age <= 80
         && p.height is number && p.height >= 130 && p.height <= 220
@@ -50,7 +51,7 @@ service cloud.firestore {
         allow create, update: if isOwner(uid) && validDate(date)
           && request.resource.data.keys().hasOnly(['kg'])
           && request.resource.data.kg is number
-          && request.resource.data.kg >= 30 && request.resource.data.kg <= 150;
+          && request.resource.data.kg >= 30 && request.resource.data.kg <= 200;
       }
     }
   }

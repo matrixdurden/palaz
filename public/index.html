@@ -25,6 +25,7 @@
     })();
   </script>
   <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -76,6 +77,7 @@
         <label class="field"><span class="label" data-i18n="heightCm"></span><input id="setup-height" class="num" inputmode="numeric" autocomplete="off" placeholder="170"></label>
         <label class="field"><span class="label" data-i18n="weightKg"></span><input id="setup-weight" class="num" inputmode="decimal" autocomplete="off" placeholder="60"></label>
       </div>
+      <p class="muted small" id="setup-bmi" hidden></p>
       <div class="field">
         <span class="label" data-i18n="activity"></span>
         <div class="seg" id="setup-activity" role="group" data-i18n-label="activity">
@@ -94,6 +96,7 @@
         </div>
         <p class="muted small" id="setup-goal-hint"></p>
       </div>
+      <label class="field target-field" id="setup-target-row"><span class="label" data-i18n="targetWeight"></span><input id="setup-target" class="num" inputmode="decimal" autocomplete="off" placeholder="65"></label>
       <div class="card setup-result" id="setup-result"></div>
       <label class="check" id="setup-rescale-row" hidden><input type="checkbox" id="setup-rescale" checked><span data-i18n="rescaleMeals"></span></label>
       <button class="ink block" type="submit" id="setup-submit"></button>
@@ -122,6 +125,16 @@
 
     <!-- Bugün -->
     <main id="tab-today" class="tab">
+      <section class="card guide" id="guide" hidden>
+        <h2 data-i18n="guideTitle"></h2>
+        <ol class="steps">
+          <li data-i18n="guide1"></li>
+          <li data-i18n="guide2"></li>
+          <li data-i18n="guide3"></li>
+          <li data-i18n="guide4"></li>
+        </ol>
+        <button type="button" class="ink small" id="guide-ok" data-i18n="guideOk"></button>
+      </section>
       <section class="card" id="summary"></section>
       <section class="card fix" id="fix" hidden></section>
       <section class="card scan">
@@ -189,6 +202,7 @@
           <button id="weight-save" class="ink" type="submit"></button>
         </form>
         <p class="muted small" data-i18n="weighHint"></p>
+        <div id="weight-goal"></div>
         <div id="weight-note"></div>
         <div id="weight-chart"></div>
         <ul class="list" id="weight-list"></ul>

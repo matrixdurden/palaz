@@ -7,7 +7,7 @@ import { auth, DEMO } from "./firebase.js";
 import * as data from "./data.js";
 import {
   MEALS, FOODS, POOL, PROGRAM, PROFILE_LIMITS, blankDay, variant, mealValues, dayTotals, hasData, bestCombos, applyCombo,
-  calcTargets, validProfile, scaleMeals, planTotals, sortMeals,
+  calcTargets, validProfile, scaleMeals, planTotals, sortMeals, bmi, bmiClass, weeksTo, GOAL_PACE, WEIGHT_LIMITS,
   weightTrend, nextWorkoutType, lastSets, readyToProgress, dateKey, parseKey, addDays,
 } from "./plan.js";
 import { isBarcode, scale, rescale } from "./nutrition.js";
@@ -27,18 +27,14 @@ markLang();
 
 // --- Ekranlar ---------------------------------------------------------------
 
-let screen = null; // "login" | "setup" | "app"; null: veri gelince karar verilecek
+let screen = null; // "login" | "setup" | "app"; null: veri gelince karar verilecek (açılış ekranı görünür)
 
 function show(name) {
   screen = name;
   $("#login").hidden = name !== "login";
   $("#setup").hidden = name !== "setup";
   $("#app").hidden = name !== "app";
-  const loader = $("#loading");
-  if (loader) {
-    loader.classList.add("fade");
-    setTimeout(() => loader.remove(), 400);
-  }
+  $("#loading").classList.toggle("fade", name !== null);
 }
 
 function setTab(name) {
@@ -121,6 +117,7 @@ function renderHeader() {
 function renderToday() {
   const d = sel, dy = day(d), T = state.targets, meals = mealsOf(d);
   const tot = dayTotals(dy, d >= today(), meals);
+  $("#guide").hidden = store.get("guideDone") === "1";
 
   // Dış halka kalori, iç halka protein.
   const ring = (cls, r, v, max) => `
@@ -554,6 +551,32 @@ function renderWeight() {
   };
   $("#weight-note").innerHTML = notes[tr.kind];
   $("#weight-chart").innerHTML = entries.length >= 2 ? weightChart(entries) : "";
+  renderWeightGoal(entries, tr);
+}
+
+// Hedef kilo girildiyse: kalan kilo, ilerleme çubuğu ve bu hızla kaç hafta.
+function renderWeightGoal(entries, tr) {
+  const pr = state.profile, el = $("#weight-goal");
+  if (!pr?.target || pr.goal === "keep") {
+    el.innerHTML = "";
+    return;
+  }
+  // Başlangıç: kurulumda girilen kilo ya da ilk tartı (aynı gün güncellenen tartı başlangıcı kaydırmasın).
+  const start = entries.length ? Math.min(entries[0].kg, pr.weight) : pr.weight;
+  const now = entries.length ? entries[entries.length - 1].kg : pr.weight;
+  const left = Math.round((pr.target - now) * 10) / 10;
+  if (left <= 0) {
+    el.innerHTML = `<div class="note">${t("targetDone", { t: kgn(pr.target) })}</div>`;
+    return;
+  }
+  const pace = ["good", "fast"].includes(tr.kind) ? tr.perWeek : GOAL_PACE[pr.goal];
+  const span = pr.target - start;
+  const done = span > 0 ? Math.max(0, Math.min(100, ((now - start) / span) * 100)) : 0;
+  el.innerHTML = `<div class="goal-line">
+      <strong>${t("targetLeft", { t: kgn(pr.target), r: kgn(left) })}</strong>
+      <span class="muted small">${t("targetEta", { n: weeksTo(now, pr.target, pace) })}</span>
+    </div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(done)}"><i style="width:${done.toFixed(1)}%"></i></div>`;
 }
 
 function weightChart(entries) {
@@ -665,8 +688,9 @@ $("#custom-form").addEventListener("submit", (e) => {
 $("#weight-form").addEventListener("submit", (e) => {
   e.preventDefault();
   const value = Math.round(parseFloat($("#weight-input").value.replace(",", ".")) * 10) / 10;
-  if (!(value >= 30 && value <= 150)) {
-    toast(t("weightRange"));
+  const [lo, hi] = WEIGHT_LIMITS;
+  if (!(value >= lo && value <= hi)) {
+    toast(t("weightRange", { a: lo, b: hi }));
     return;
   }
   state.weights[sel] = { kg: value };
@@ -704,6 +728,7 @@ function openSetup(edit) {
   $("#setup-age").value = pr.age ?? "";
   $("#setup-height").value = pr.height ?? "";
   $("#setup-weight").value = pr.weight != null ? pr.weight.toLocaleString(locale()) : "";
+  $("#setup-target").value = pr.target != null ? pr.target.toLocaleString(locale()) : "";
   $("#setup-rescale").checked = true;
   $("#setup-rescale-row").hidden = !edit;
   $("#setup-cancel").hidden = !edit;
@@ -715,7 +740,7 @@ function openSetup(edit) {
 
 function readProfile() {
   const num = (id) => parseFloat($(id).value.replace(",", "."));
-  return {
+  const pr = {
     sex: setup.sex,
     age: Math.round(num("#setup-age")),
     height: Math.round(num("#setup-height")),
@@ -723,7 +748,14 @@ function readProfile() {
     activity: setup.activity,
     goal: setup.goal,
   };
+  // Hedef kilo isteğe bağlı; boşsa alan hiç yazılmaz (Firestore undefined kabul etmiyor).
+  const target = Math.round(num("#setup-target") * 10) / 10;
+  if (setup.goal !== "keep" && target > 0) pr.target = target;
+  return pr;
 }
+
+const inRange = (v, [lo, hi]) => v >= lo && v <= hi;
+const kgn = (n) => n.toLocaleString(locale(), { maximumFractionDigits: 1 }); // 66 kg, 65,5 kg
 
 function renderSetup() {
   for (const [id, key] of [["#setup-sex", "sex"], ["#setup-activity", "activity"], ["#setup-goal", "goal"]]) {
@@ -731,20 +763,34 @@ function renderSetup() {
   }
   $("#setup-activity-hint").textContent = t(`act.${setup.activity}.hint`);
   $("#setup-goal-hint").textContent = t(`goal.${setup.goal}.hint`);
+  $("#setup-target-row").hidden = setup.goal === "keep";
   const pr = readProfile();
-  const ok = validProfile(pr);
+
+  // Boy ve kilo girilince VKİ; yetişkin ölçeği olduğu için 18 yaş altında gösterilmez.
+  const bmiEl = $("#setup-bmi");
+  bmiEl.hidden = !(inRange(pr.height, PROFILE_LIMITS.height) && inRange(pr.weight, PROFILE_LIMITS.weight) && !(pr.age < 18));
+  if (!bmiEl.hidden) {
+    const b = Math.round(bmi(pr) * 10) / 10, c = bmiClass(b); // ekrandaki sayıyla aynı sınıf
+    bmiEl.textContent = t("bmiLine", { b: kg(b), c: t(`bmi.${c}`) })
+      + (["over", "obese"].includes(c) && setup.goal !== "keep" ? ` ${t("bmiGainWarn")}` : "");
+  }
+
+  const targetLow = pr.target != null && pr.weight > 0 && pr.target <= pr.weight;
+  const ok = validProfile(pr) && !targetLow;
   $("#setup-submit").disabled = !ok;
   if (ok) {
-    const T = calcTargets(pr);
+    const T = calcTargets(pr), pace = GOAL_PACE[pr.goal];
+    const eta = pace && pr.target ? ` ${t("setupEta", { t: kgn(pr.target), n: weeksTo(pr.weight, pr.target, pace) })}` : "";
     $("#setup-result").innerHTML = `<span class="label">${t("setupResult")}</span>
-      <div class="setup-nums"><b class="num k">${fmt(T.kcal)}<small> kcal</small></b><b class="num p">${fmt(T.protein)}<small> ${t("proteinUnit")}</small></b></div>`;
+      <div class="setup-nums"><b class="num k">${fmt(T.kcal)}<small> kcal</small></b><b class="num p">${fmt(T.protein)}<small> ${t("proteinUnit")}</small></b></div>
+      ${pace ? `<p class="muted small">${t("setupPace", { w: kg(pace) })}${eta}</p>` : ""}`;
     return;
   }
   const filled = ["#setup-age", "#setup-height", "#setup-weight"].every((id) => $(id).value.trim());
   const range = (key) => PROFILE_LIMITS[key].join("–");
-  $("#setup-result").innerHTML = `<p class="muted small">${filled && setup.sex
-    ? t("setupInvalid", { a: range("age"), h: range("height"), w: range("weight") })
-    : t("setupNeed")}</p>`;
+  $("#setup-result").innerHTML = `<p class="muted small">${targetLow ? t("targetLow")
+    : filled && setup.sex ? t("setupInvalid", { a: range("age"), h: range("height"), w: range("weight") })
+      : t("setupNeed")}</p>`;
 }
 
 $("#setup").addEventListener("click", (e) => {
@@ -767,7 +813,7 @@ $("#setup-form").addEventListener("submit", (e) => {
   else if ($("#setup-rescale").checked) replan(scaleMeals(currentMeals(), targets));
   // İlk kurulumda girilen kilo, tartı listesinin ilk kaydı olur.
   const now = today();
-  if (!edit && !state.weights[now] && pr.weight >= 30 && pr.weight <= 150) {
+  if (!edit && !state.weights[now] && inRange(pr.weight, WEIGHT_LIMITS)) {
     state.weights[now] = { kg: pr.weight };
     data.saveWeight(now);
   }
@@ -931,7 +977,13 @@ $("#open-meals").addEventListener("click", () => {
 });
 $("#sign-out").addEventListener("click", () => {
   $("#settings").close();
+  data.flush(); // son dokunuşlar çıkıştan önce yazılsın
   signOut(auth);
+});
+
+$("#guide-ok").addEventListener("click", () => {
+  store.set("guideDone", "1");
+  $("#guide").hidden = true;
 });
 
 // Sistem teması değişirse (tema "Sistem"deyken) adres çubuğu rengi de değişsin.
@@ -994,7 +1046,7 @@ if (DEMO) {
     }
     if (user?.uid === u.uid) return;
     user = u;
-    screen = null;
+    show(null); // kayıtlar gelene kadar açılış ekranı; giriş ekranında beklemesin
     data.start(u.uid, changed); // ilk okuma bitince changed() kurulumu ya da uygulamayı açar
   });
 

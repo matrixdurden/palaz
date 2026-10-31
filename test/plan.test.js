@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   MEALS, POOL, blankDay, dayTotals, bestCombos, applyCombo, variant, weightTrend,
   addDays, nextWorkoutType, lastSets, readyToProgress, PROGRAM,
-  calcTargets, validProfile, scaleMeals, planTotals, sortMeals,
+  calcTargets, validProfile, scaleMeals, planTotals, sortMeals, bmi, bmiClass, weeksTo,
 } from "../public/plan.js";
 
 test("boş gün: plan tamamen yenirse hedefe yakın", () => {
@@ -93,6 +93,17 @@ test("profil sınırları", () => {
   assert.equal(validProfile({ ...me, sex: null }), false);
   assert.equal(validProfile({ ...me, height: Number.NaN }), false);
   assert.equal(validProfile(null), false);
+  assert.equal(validProfile({ ...me, target: 70 }), true);
+  assert.equal(validProfile({ ...me, target: 20 }), false);
+});
+
+test("VKİ ve hedef kiloya kalan süre", () => {
+  assert.equal(bmiClass(bmi({ height: 180, weight: 55 })), "under");
+  assert.equal(bmiClass(bmi({ height: 180, weight: 70 })), "normal");
+  assert.equal(bmiClass(bmi({ height: 170, weight: 80 })), "over");
+  assert.equal(weeksTo(60, 65, 0.4), 13);
+  assert.equal(weeksTo(66, 65, 0.4), 0);
+  assert.equal(weeksTo(60, 65, 0), 0);
 });
 
 test("plan hedefe ölçeklenir; çok değişirse hazır içerik metni boşalır", () => {

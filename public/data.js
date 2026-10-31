@@ -22,7 +22,7 @@ const DAYS_KEPT = 120; // ekranlar en fazla bu kadar geriye bakar
 let uid = null;
 let onChange = () => {};
 let unsubs = [];
-const timers = new Map(); // bekleyen yazma → canlı güncelleme onu ezmesin
+const pending = new Map(); // bekleyen yazma: { timer, run } → canlı güncelleme onu ezmesin
 
 export function start(userId, changed) {
   stop();
@@ -54,7 +54,7 @@ export function start(userId, changed) {
     }, fail),
     onSnapshot(doc(db, "users", uid), (snap) => {
       loaded("user");
-      if (timers.has("user")) return;
+      if (pending.has("user")) return;
       const d = snap.data() || {};
       state.targets = { kcal: d.targets?.kcal || DEFAULT_TARGETS.kcal, protein: d.targets?.protein || DEFAULT_TARGETS.protein };
       state.profile = d.profile || null;
@@ -65,6 +65,9 @@ export function start(userId, changed) {
 }
 
 export function stop() {
+  // Çıkışta flush() çağrılır; burada kalan yazma başka hesaba gitmesin diye atılır.
+  for (const p of pending.values()) clearTimeout(p.timer);
+  pending.clear();
   for (const unsub of unsubs) unsub();
   unsubs = [];
   state.days = {};
@@ -78,7 +81,7 @@ export function stop() {
 function applyChanges(snap, target, kind) {
   for (const change of snap.docChanges()) {
     const id = change.doc.id;
-    if (timers.has(`${kind}/${id}`)) continue;
+    if (pending.has(`${kind}/${id}`)) continue;
     if (change.type === "removed") delete target[id];
     else target[id] = change.doc.data();
   }
@@ -87,9 +90,9 @@ function applyChanges(snap, target, kind) {
 
 // Hızlı art arda dokunuşları tek yazmada toplar.
 function queue(key, write) {
-  clearTimeout(timers.get(key));
-  timers.set(key, setTimeout(() => {
-    timers.delete(key);
+  clearTimeout(pending.get(key)?.timer);
+  const run = () => {
+    pending.delete(key);
     if (DEMO) {
       store.set("data", JSON.stringify({ ...state, ready: undefined }));
       return;
@@ -98,22 +101,39 @@ function queue(key, write) {
       console.error(err);
       onChange("save-error");
     });
-  }, 400));
+  };
+  pending.set(key, { timer: setTimeout(run, 400), run });
 }
 
+// Bekleyenleri hemen yazar: uygulama kapanırken ya da çıkış yapmadan önce.
+export function flush() {
+  for (const p of [...pending.values()]) {
+    clearTimeout(p.timer);
+    p.run();
+  }
+}
+addEventListener("pagehide", flush);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flush();
+});
+
+// Yol yazma anında değil şimdi kurulur: arada hesap değişirse kayıt yanlış kişiye gitmesin.
+const ref = (...path) => (DEMO ? null : doc(db, "users", uid, ...path));
+
 export function saveDay(date) {
-  const body = structuredClone(state.days[date]);
-  queue(`days/${date}`, () => setDoc(doc(db, "users", uid, "days", date), body));
+  const body = structuredClone(state.days[date]), at = ref("days", date);
+  queue(`days/${date}`, () => setDoc(at, body));
 }
 
 export function saveWeight(date) {
-  const body = { ...state.weights[date] };
-  queue(`weights/${date}`, () => setDoc(doc(db, "users", uid, "weights", date), body));
+  const body = { ...state.weights[date] }, at = ref("weights", date);
+  queue(`weights/${date}`, () => setDoc(at, body));
 }
 
 export function deleteWeight(date) {
   delete state.weights[date];
-  queue(`weights/${date}`, () => deleteDoc(doc(db, "users", uid, "weights", date)));
+  const at = ref("weights", date);
+  queue(`weights/${date}`, () => deleteDoc(at));
 }
 
 // Hedefler, profil ve öğün planı aynı belgede; hep birlikte yazılır.
@@ -123,5 +143,6 @@ export function saveUser() {
     profile: state.profile ? { ...state.profile } : deleteField(),
     meals: state.meals ? structuredClone(state.meals) : deleteField(),
   };
-  queue("user", () => setDoc(doc(db, "users", uid), body, { merge: true }));
+  const at = ref();
+  queue("user", () => setDoc(at, body, { merge: true }));
 }

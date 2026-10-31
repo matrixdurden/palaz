@@ -194,6 +194,8 @@ button.icon.sm svg { width: 16px; height: 16px; }
 .field-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .field-row input { text-align: center; font-size: 1.1rem; font-weight: 700; }
 .field-row input::placeholder { font-weight: 500; opacity: 0.4; }
+.target-field input { font-size: 1.1rem; font-weight: 700; }
+.target-field input::placeholder { font-weight: 500; opacity: 0.4; }
 .setup-result { gap: 6px; min-height: 92px; justify-content: center; }
 .setup-nums { display: flex; gap: 18px; flex-wrap: wrap; align-items: baseline; }
 .setup-nums b { font-family: var(--display); font-size: 2rem; font-weight: 800; letter-spacing: -0.03em; }
@@ -371,6 +373,18 @@ dialog.wide .menu > :not(.meal-rows) { flex: none; }
 
 .note { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border-radius: 16px; background: var(--prot-soft); font-size: 0.9rem; }
 .note.warn { background: var(--kcal-soft); }
+
+/* Hedef kilo: kalan kilo ve ilerleme çubuğu. */
+#weight-goal { display: flex; flex-direction: column; gap: 8px; }
+#weight-goal:empty { display: none; }
+.goal-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.bar { height: 8px; border-radius: 99px; background: var(--card-2); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--prot-2), var(--prot)); }
+
+/* İlk açılışta "Nasıl kullanılır?" kartı. */
+.guide { background: linear-gradient(160deg, var(--prot-soft), var(--card) 70%); }
+.guide .steps { font-size: 0.92rem; }
+.guide button { align-self: flex-start; }
 .note button { height: 36px; }
 
 .chart { width: 100%; height: auto; display: block; stroke: none; }
