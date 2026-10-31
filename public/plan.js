@@ -70,6 +70,7 @@ export const POOL = [
 ].map((o) => ({ ...o, k: sumAdd(o.add, "k"), p: sumAdd(o.add, "p") }));
 
 // Evde ekipmansız antrenman. Gün A ve B dönüşümlü yapılır.
+// Son iki hareket boyun ve duruş için: çene hattını belirginleştirir.
 export const PROGRAM = {
   A: [
     { id: "sinav", sets: 4, range: [8, 20], unit: "reps" },
@@ -77,6 +78,8 @@ export const PROGRAM = {
     { id: "masa", sets: 4, range: [8, 15], unit: "reps" },
     { id: "pike", sets: 3, range: [6, 12], unit: "reps" },
     { id: "plank", sets: 3, range: [30, 60], unit: "sec" },
+    { id: "cene", sets: 3, range: [10, 15], unit: "reps" },
+    { id: "boyunOn", sets: 3, range: [15, 25], unit: "reps" },
   ],
   B: [
     { id: "dar", sets: 4, range: [8, 20], unit: "reps" },
@@ -84,6 +87,8 @@ export const PROGRAM = {
     { id: "canta", sets: 4, range: [10, 15], unit: "reps" },
     { id: "kopru", sets: 3, range: [15, 20], unit: "reps" },
     { id: "bacak", sets: 3, range: [10, 15], unit: "reps" },
+    { id: "cene", sets: 3, range: [10, 15], unit: "reps" },
+    { id: "boyunArka", sets: 3, range: [15, 25], unit: "reps" },
   ],
 };
 

@@ -145,6 +145,9 @@ const TR = {
   "ex.canta": "Sırt çantasıyla çekiş", "ex.canta.note": "Çantayı kitapla doldur", "ex.canta.harder": "çantaya daha çok kitap koy",
   "ex.kopru": "Kalça köprüsü", "ex.kopru.harder": "tek bacak köprü",
   "ex.bacak": "Yatarak bacak kaldırma", "ex.bacak.harder": "yavaş indir, yere değdirme",
+  "ex.cene": "Chin tuck (çeneyi geri çekme)", "ex.cene.note": "Dik dur, başını eğmeden çeneni düz geriye it, 5 sn tut. Duruşu düzeltir; her gün yapılabilir", "ex.cene.harder": "her tekrarda 10 sn tut",
+  "ex.boyunOn": "Yatarak boyun bükme", "ex.boyunOn.note": "Sırtüstü, başın yatağın ucundan boşta. Çeneyi göğse getir, yavaş indir. Ağrı olursa bırak", "ex.boyunOn.harder": "elinle alnına hafif direnç ver",
+  "ex.boyunArka": "Yüzüstü boyun kaldırma", "ex.boyunArka.note": "Yüzüstü, başın yatağın ucundan boşta. Başını yavaşça kaldır, yavaş indir. Ağrı olursa bırak", "ex.boyunArka.harder": "elinle ensene hafif direnç ver",
 };
 
 const EN = {
@@ -279,6 +282,9 @@ const EN = {
   "ex.canta": "Backpack row", "ex.canta.note": "Fill the backpack with books", "ex.canta.harder": "add more books",
   "ex.kopru": "Glute bridge", "ex.kopru.harder": "single-leg bridge",
   "ex.bacak": "Lying leg raise", "ex.bacak.harder": "lower slowly, don't touch the floor",
+  "ex.cene": "Chin tuck", "ex.cene.note": "Stand tall, slide your chin straight back without tilting, hold 5 sec. Fixes posture; fine to do daily", "ex.cene.harder": "hold 10 sec each rep",
+  "ex.boyunOn": "Lying neck flexion", "ex.boyunOn.note": "On your back, head off the edge of the bed. Bring chin to chest, lower slowly. Stop if it hurts", "ex.boyunOn.harder": "press lightly on your forehead with your hand",
+  "ex.boyunArka": "Prone neck extension", "ex.boyunArka.note": "Face down, head off the edge of the bed. Lift your head slowly, lower slowly. Stop if it hurts", "ex.boyunArka.harder": "press lightly on the back of your head with your hand",
 };
 
 const DICT = { tr: TR, en: EN };
